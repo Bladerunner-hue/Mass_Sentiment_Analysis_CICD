@@ -44,3 +44,6 @@ if __name__ == "__main__" :
     # function calling
     sentiment_scores(sentence)
 
+    sentence = input("Please enter a third string:\n")
+    # function calling
+    sentiment_scores(sentence)
