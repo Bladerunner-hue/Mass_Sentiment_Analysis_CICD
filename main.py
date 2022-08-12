@@ -1,5 +1,6 @@
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
- 
+
+
 # function to print sentiments
 # of the sentence.
 def sentiment_scores(sentence):
