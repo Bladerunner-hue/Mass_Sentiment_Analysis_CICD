@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href='/staticFiles/main.css' />
+  </head>
+  <body>
+    <h1>Sentiment Analysis Application using python and Flask</h1>
+    <p>Generate Sentiment score using Vader sentiment</p>
+ 
+{{ data|safe }}
+ 
+<br>
+ 
+  <form action="/sentiment" target="_blank">
+        <input type="submit" value="Sentiment Analysis" />
+    </form>
+    </body>
+</html>

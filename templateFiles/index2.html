@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href='/staticFiles/main.css' />
+  </head>
+  <body>
+    <h1>Sentiment Analysis Flask App</h1>
+    <p>Vader python sentiment analysis</p>
+ 
+    <form method="POST" enctype="multipart/form-data" action="/">
+        <input type="file" id="myFile" name="uploaded-file" accept=".csv">
+        <input type="submit" value="Submit">
+    </form>
+  <br>
+  <p style="color:green;">file uploaded successfully</p>
+  <form action="/show_data" target="_blank">
+        <input type="submit" value="Show CSV" />
+    </form>
+  </body>
+</html>

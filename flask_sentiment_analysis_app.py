@@ -37,6 +37,7 @@ def vader_sentiment_scores(data_frame):
  
 # WSGI Application
 # Provide template folder name
+
 app = Flask(__name__, template_folder='templateFiles')
  
 app.secret_key = 'You Will Never Guess'
