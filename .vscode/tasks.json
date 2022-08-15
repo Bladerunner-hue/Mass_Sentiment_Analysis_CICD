@@ -19,7 +19,7 @@
 				"docker-build"
 			],
 			"python": {
-				"file": "main.py"
+				"file": "flask_sentiment_analysis_app"
 			}
 		}
 	]
