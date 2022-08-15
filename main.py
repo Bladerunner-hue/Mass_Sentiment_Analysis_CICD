@@ -14,21 +14,27 @@ def sentiment_scores(sentence):
     sentiment_dict = sid_obj.polarity_scores(sentence)
      
     print("Overall sentiment dictionary is : ", sentiment_dict)
-    print("sentence was rated as ", sentiment_dict['neg']*100, "% Negative")
-    print("sentence was rated as ", sentiment_dict['neu']*100, "% Neutral")
-    print("sentence was rated as ", sentiment_dict['pos']*100, "% Positive")
+    if sentiment_dict["neg"]:
+        return ("sentence was rated as ", sentiment_dict['neg']*100, "% Negative")
+    elif sentiment_dict["neg"] and ["neu"]:
+         return ("sentence was rated as ", sentiment_dict['neg']*100, "% Negative and", sentiment_dict['neu']*100, "% Neutral")
+    elif sentiment_dict["neg"] and ["neu"] and ['pos'] :
+         return ("sentence was rated as ", sentiment_dict['neg']*100, "% Negative and", sentiment_dict['neu']*100, "% Neutral", sentiment_dict['pos']*100, "% Neutral")
+    #print("sentence was rated as ", sentiment_dict['neg']*100, "% Negative")
+    #print("sentence was rated as ", sentiment_dict['neu']*100, "% Neutral")
+    #print("sentence was rated as ", sentiment_dict['pos']*100, "% Positive")
  
-    print("Sentence Overall Rated As", end = " ")
+    #print("Sentence Overall Rated As", end = " ")
  
     # decide sentiment as positive, negative and neutral
     if sentiment_dict['compound'] >= 0.05 :
-        print("Positive")
- 
+            return("Positive")
+    
     elif sentiment_dict['compound'] <= - 0.05 :
-        print("Negative")
- 
+            return("Negative")
+    
     else :
-        print("Neutral")
+            return("Neutral") 
  
  
    
@@ -36,17 +42,6 @@ def sentiment_scores(sentence):
 if __name__ == "__main__" :
  
     print("\n1st statement :")
-    sentence = input("Please enter a string:\n")
+    sentence = ("very bad i'm unhappy with the product\n")
     # function calling
     sentiment_scores(sentence)
-
-    sentence = input("Please enter a second string:\n")
-    # function calling
-    sentiment_scores(sentence)
-
-    sentence = input("Please enter a third string:\n")
-    # function calling
-    sentiment_scores(sentence)
-
-def fonction():
-    return 0
