@@ -13,7 +13,7 @@ services:
     tty: true
     volumes:
       - jenkins-data:/var/jenkins_home
-      - /oui/bin/docker:/oui/bin/docker
+      - oui\.docker:oui\.docker
       - jenkins-docker-certs:/certs/client:ro
       - $HOME:/home
     environment:
