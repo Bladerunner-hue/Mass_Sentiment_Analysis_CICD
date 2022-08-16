@@ -10,7 +10,7 @@ def vader_sentiment_scores(data_frame):
     SID_obj = SentimentIntensityAnalyzer()
 
     # We then calculate polarity that gives a sentiment dictionary
-    # It contains pos, neg, neu, compound scores
+    # It contains pos, neg, neu, compound score
     sentiment_list = []
     for row_num in range(len(data_frame)):
         sentence = data_frame['Text'][row_num]
