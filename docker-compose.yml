@@ -13,7 +13,7 @@ services:
     tty: true
     volumes:
       - jenkins-data:/var/jenkins_home
-      - oui\.docker:oui\.docker
+      - /var/jenkins_home:/var/jenkins_home
       - jenkins-docker-certs:/certs/client:ro
       - $HOME:/home
     environment:
@@ -26,12 +26,4 @@ web:
   container_name: flask_sentiment_analysis_app
   ports:
     "3000,5050"
-  links:
-    db
-
-db:
-  image: mongo
-  container_name: mongodb
-  ports:
-    27017:27017
 
