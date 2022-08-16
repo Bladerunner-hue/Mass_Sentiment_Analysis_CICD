@@ -6,3 +6,17 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+
+web:
+  build: .
+  container_name: flask_sentiment_analysis_app
+  ports:
+    "3000,5050"
+  links:
+    db
+
+db:
+  image: mongo
+  container_name: mongodb
+  ports:
+    27017:27017

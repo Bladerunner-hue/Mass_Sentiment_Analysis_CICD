@@ -2,16 +2,14 @@ from flask import Flask, render_template, request, session
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from pandas.io.json import json_normalize
-import csv
-import os
  
-# Sentiment analysis function using VADER
+# We use vader for sentiment analysis
 def vader_sentiment_scores(data_frame):
-    # Define SentimentIntensityAnalyzer object of VADER.
+    # we use Vader's sentiment analyzer
     SID_obj = SentimentIntensityAnalyzer()
  
-    # calculate polarity scores which gives a sentiment dictionary,
-    # Contains pos, neg, neu, and compound scores.
+    # We then calculate polarity that gives a sentiment dictionary
+    # It contains pos, neg, neu, compound scores
     sentiment_list = []
     for row_num in range(len(data_frame)):
         sentence = data_frame['Text'][row_num]
@@ -39,7 +37,7 @@ def vader_sentiment_scores(data_frame):
  
 # WSGI Application
 # Provide template folder name
-# The default folder name should be "templates" else need to mention custom folder name
+
 app = Flask(__name__, template_folder='templateFiles')
  
 app.secret_key = 'You Will Never Guess'
