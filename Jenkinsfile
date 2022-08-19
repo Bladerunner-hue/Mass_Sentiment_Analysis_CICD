@@ -13,7 +13,8 @@ stage('build') {
 
 
      steps {
-        bat 'docker compose up'
+        bat 'docker build -t name .' 
+        bat 'docker run -p 5000:5000 name'
             }
 }
 
