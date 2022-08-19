@@ -1,5 +1,4 @@
 # To ensure app dependencies are ported from your virtual environment/host machine into your container, run 'pip freeze > requirements.txt' in the terminal to overwrite this file
-Python 3.8.10
 Werkzeug 2.0.3
 pandas~=1.4.3
 Flask~=2.2.2
