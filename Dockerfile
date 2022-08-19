@@ -8,5 +8,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD [ "python", "./flask_sentiment_analysis_app.py" ]
+CMD [ "python", "./localConsole.py" ]
 
