@@ -1,8 +1,29 @@
 version: '3.4'
 
 services:
-  rattrapage:
-    image: rattrapage
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    restart: always
+    networks:
+      - docker
+    ports:
+      - 8080:8080
+      - 50000:50000
+    tty: true
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - /var/jenkins_home:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+      - $HOME:/home
+    environment:
+      - DOCKER_HOST=tcp://docker:2376
+      - DOCKER_CERT_PATH=/certs/client
+      - DOCKER_TLS_VERIFY=1
+
+web:
+  build: .
+  container_name: flask_sentiment_analysis_app
+  ports:
+    "3000,5050"
+
