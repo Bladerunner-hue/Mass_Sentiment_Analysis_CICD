@@ -19,7 +19,7 @@ stages {
 
    stage('container shutdown'){
       steps{
-         sh 'docker rm -f tender_matsumoto'
+         sh 'docker rmi -f tender_matsumoto'
       }
    }
  }
