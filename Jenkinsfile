@@ -6,8 +6,8 @@ stages {
    stage('build') {
 
       steps {
-         script
-         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         script{
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main')
          sh 'docker build -t tender_matsumoto .'
          }         
             }
@@ -17,8 +17,8 @@ stages {
    stage('build flask app'){
       
       steps{
-         script
-         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         script{
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main')
          sh 'docker run -p 5000:5000 tender_matsumoto'
          }
    }
@@ -26,8 +26,8 @@ stages {
 
    stage('container shutdown'){
       steps{
-         script
-         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         script{
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main')
          sh 'docker rmi -f tender_matsumoto'
       }}
    }
