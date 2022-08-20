@@ -37,8 +37,9 @@ if __name__ == "__main__" :
  
     print("\n1st statement :")
     sentence = ("very bad i'm unhappy with the product\n")
+    sentiment_scores(sentence)
 
-    print("\n1st statement :")
+    print("\n2nd statement :")
     sentence = ("I love and enjoy this product\n")
     # function calling
     sentiment_scores(sentence)
