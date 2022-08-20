@@ -13,8 +13,14 @@ stages {
 
    stage('build flask app'){
       steps{
-      sh 'docker run -p 5000:5000 tender_matsumoto'
+         sh 'docker run -p 5000:5000 tender_matsumoto'
    }
+   }
+
+   stage('container shutdown'){
+      steps{
+         sh 'docker rm -f tender_matsumoto'
+      }
    }
  }
 }   
