@@ -34,16 +34,18 @@ stages {
    }
    }
 
-   stage('Deliver for development') {
-            when {
-                branch 'features'
-            }
-            steps {
-                sh './jenkins/scripts/deliver-for-development.sh'
-                input message: 'Finished using the web site? (Click "Proceed" to continue)'
-                sh './jenkins/scripts/kill.sh'
-            }
-        }
+   stage('Accepting next step'){
+      
+      steps{
+         script{
+            // Variables for input
+                    def inputConfig
+                    def inputTest
+         if(env.BRANCH_NAME == 'features'){
+         input 'Proceed to live development ?'
+         }}
+   }
+   }
 
    stage('Master merging'){
       
