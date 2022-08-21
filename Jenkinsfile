@@ -33,7 +33,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'localConsole.py'
+         sh 'python3 conftest.py'
          }}
    }
    }
