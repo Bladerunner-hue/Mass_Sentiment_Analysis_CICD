@@ -2,3 +2,4 @@
 pandas~=1.4.3
 Flask~=2.2.2
 vaderSentiment~=3.3.2
+Pytest~=7.1.2
