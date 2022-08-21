@@ -1,3 +1,4 @@
+def groovyfile
 pipeline {
 agent any
 
@@ -7,69 +8,53 @@ stages {
 
       steps {
          script{
-         if(env.BRANCH_NAME == 'features'){
-         sh 'docker build -t tender_matsumoto .'
-         } 
-         else if(env.BRANCH_NAME == 'main'){
-            'not proper place'
-         }
-
-      }}
-
+         def filename = 'jenkins' + env.BRANCH_NAME + '.groovy'
+         groovyfile = load filename
+         groovyfile.build_app()         
+      }
    }
+}
 
    stage('build flask app'){
       
       steps{
          script{
-         if(env.BRANCH_NAME == 'features'){
-         sh 'docker run -p 5000:5000 tender_matsumoto'
-         }}
+         groovyfile.run_app()
+      }
    }
-   }
+}
 
    stage('release'){
       
       steps{
          script{
-         if(env.BRANCH_NAME == 'features'){
-         echo 'TALEX IS ON FIRE'
-         }}
+         groovyfile.release_app()
+      }
    }
-   }
+}
 
    stage('Accepting next step'){
       
       steps{
          script{
-            // Variables for input
-                    def inputConfig
-                    def inputTest
-         if(env.BRANCH_NAME == 'features'){
-         input 'Proceed to live development ?'
-         }}
+         groovyfile.accept_app()   
+      }
    }
-   }
-
+}
    stage('Master merging'){
       
       steps{
          script{
-            // Variables for input
-                    def inputConfig
-                    def inputTest
-         if(env.BRANCH_NAME == 'features'){
-         input 'Proceed to live development ?'
-         }}
+         groovyfile.merge_app()
+      }
    }
-   }
+}
 
    stage('container shutdown'){
       steps{
          script{
-         if(env.BRANCH_NAME == 'features'){
-         sh 'docker rmi -f tender_matsumoto'
-      }}
+         groovyfile.stop_app()
+     }
    }
  }
 }   
