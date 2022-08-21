@@ -38,6 +38,9 @@ stages {
       
       steps{
          script{
+            // Variables for input
+                    def inputConfig
+                    def inputTest
          if(env.BRANCH_NAME == 'features'){
          input 'Proceed to live development ?'
          }}
