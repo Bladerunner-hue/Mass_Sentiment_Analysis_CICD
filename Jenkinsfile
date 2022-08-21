@@ -42,7 +42,20 @@ stages {
                     def inputConfig
                     def inputTest
          if(env.BRANCH_NAME == 'features'){
-         def input 'Proceed to live development ?'
+         input 'Proceed to live development ?'
+         }}
+   }
+   }
+
+   stage('Master merging'){
+      
+      steps{
+         script{
+            // Variables for input
+                    def inputConfig
+                    def inputTest
+         if(env.BRANCH_NAME == 'features'){
+         input 'Proceed to live development ?'
          }}
    }
    }
