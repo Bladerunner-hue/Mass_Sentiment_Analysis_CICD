@@ -5,16 +5,32 @@ stages {
 
    stage('build') {
 
-     steps {
-        sh 'docker build -t tender_matsumoto .'         
-            }
+      steps {
+         script{
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         sh 'docker build -t tender_matsumoto .'
+         }         
+            }}
 
    }
 
    stage('build flask app'){
+      
       steps{
-      sh 'docker run -p 5000:5000 tender_matsumoto'
+         script{
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         sh 'docker run -p 5000:5000 tender_matsumoto'
+         }}
    }
+   }
+
+   stage('container shutdown'){
+      steps{
+         script{
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         sh 'docker rmi -f tender_matsumoto'
+      }}
    }
  }
 }   
+}
