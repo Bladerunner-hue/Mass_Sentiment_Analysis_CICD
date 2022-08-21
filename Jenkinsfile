@@ -24,6 +24,16 @@ stages {
    }
    }
 
+   stage('release'){
+      
+      steps{
+         script{
+         if(env.BRANCH_NAME == 'features'){
+         echo 'TALEX IS ON FIRE'
+         }}
+   }
+   }
+
    stage('Acceptance tests'){
       
       steps{
