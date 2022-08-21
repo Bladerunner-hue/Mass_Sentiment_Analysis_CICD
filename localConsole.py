@@ -1,8 +1,8 @@
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
-# function to print sentiments
-# of the sentence.
+# this is an exact replica of the web version used.
+# Used for passing flask building on jenkins.
 def sentiment_scores(sentence):
  
     # Create a SentimentIntensityAnalyzer object.
