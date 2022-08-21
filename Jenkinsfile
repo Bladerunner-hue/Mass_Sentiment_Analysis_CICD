@@ -28,6 +28,16 @@ stages {
    }
    }
 
+   stage('testing'){
+      
+      steps{
+         script{
+         if(env.BRANCH_NAME == 'features'){
+         sh 'docker run -p 5000:5000 tender_matsumoto'
+         }}
+   }
+   }
+
    stage('release'){
       
       steps{
