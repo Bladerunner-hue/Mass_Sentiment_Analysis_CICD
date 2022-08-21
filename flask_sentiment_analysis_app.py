@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request, session
 import pandas as pd
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from flask import Flask, render_template, request, session
 from pandas.io.json import json_normalize
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
 # We use vader for sentiment analysis
@@ -54,13 +54,13 @@ def uploadFile():
 
 @app.route('/show_data')
 def showData():
-    # Get uploaded csv file from session as a json value
+    # A json value gets uploaded as a session
     uploaded_json = session.get('uploaded_csv_file', None)
     # Convert json to data frame
     uploaded_df = pd.DataFrame.from_dict(eval(uploaded_json))
-    # Convert dataframe to html format
-    uploaded_df_html = uploaded_df.to_html()
-    return render_template('show_data.html', data=uploaded_df_html)
+    # We finally convert DF to HTML format in order to show a beautiful website :)
+    UploadedDfToHTML = uploaded_df.to_html()
+    return render_template('show_data.html', data=UploadedDfToHTML)
 
 
 @app.route('/sentiment')
@@ -71,8 +71,8 @@ def SentimentAnalysis():
     uploaded_df = pd.DataFrame.from_dict(eval(uploaded_json))
     # Apply sentiment function to get sentiment score
     uploaded_df_sentiment = vader_sentiment_scores(uploaded_df)
-    uploaded_df_html = uploaded_df_sentiment.to_html()
-    return render_template('show_data.html', data=uploaded_df_html)
+    UploadedDfToHTML = uploaded_df_sentiment.to_html()
+    return render_template('show_data.html', data=UploadedDfToHTML)
 
 
 if __name__ == '__main__':
