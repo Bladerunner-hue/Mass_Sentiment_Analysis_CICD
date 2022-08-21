@@ -42,7 +42,7 @@ stages {
                     def inputConfig
                     def inputTest
          if(env.BRANCH_NAME == 'features'){
-         input 'Proceed to live development ?'
+         def input 'Proceed to live development ?'
          }}
    }
    }
