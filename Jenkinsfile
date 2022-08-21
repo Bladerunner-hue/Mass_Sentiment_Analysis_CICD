@@ -9,7 +9,8 @@ stages {
          script{
          if(env.BRANCH_NAME == 'features'){
          sh 'docker build -t tender_matsumoto .'
-         }         
+         } 
+         else(){'not proper place'}        
             }}
 
    }
