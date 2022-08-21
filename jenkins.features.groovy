@@ -18,4 +18,8 @@ def merge_app(){
   echo 'merging to master'
 }
 
+def stop_app(){
+  sh 'docker rmi -f tender_matsumoto'
+}
+
 return this
