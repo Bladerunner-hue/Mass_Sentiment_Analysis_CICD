@@ -20,5 +20,10 @@ def test_some_primes():
 def test_list():
     assert "you will never guess".upper() == "YOU WILL NEVER GUESS"
 
+#Pre-statement compound
+def test_coupound():
+    sentiment_list = []
+
+#Statement verification to show the code executes well
 def test_assert():
     secrets == "you will never guess" 
