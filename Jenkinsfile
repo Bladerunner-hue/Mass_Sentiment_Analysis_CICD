@@ -43,7 +43,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         echo 'TALEX IS ON FIRE'
+         echo 'release available'
          }}
    }
    }
