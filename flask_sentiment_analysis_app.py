@@ -5,17 +5,17 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 
 # We use vader for sentiment analysis
-def vader_sentiment_scores(data_frame):
+def vaderAnalysis(dataframe):
     # we use Vader's sentiment analyzer
     SID_obj = SentimentIntensityAnalyzer()
 
     # We then calculate polarity that gives a sentiment dictionary
     # It contains pos, neg, neu, compound score
     sentiment_list = []
-    for row_num in range(len(data_frame)):
-        sentence = data_frame['Text'][row_num]
+    for row_num in range(len(dataframe)):
+        sentenceAnalysis = dataframe['Text'][row_num]
 
-        polarity_dict = SID_obj.polarity_scores(sentence)
+        polarity_dict = SID_obj.polarity_scores(sentenceAnalysis)
 
         # Calculate overall sentiment by compound score
         if polarity_dict['compound'] >= 0.05:
@@ -27,9 +27,9 @@ def vader_sentiment_scores(data_frame):
         else:
             sentiment_list.append("Neutral")
 
-    data_frame['Sentiment'] = sentiment_list
+    dataframe['Sentiment'] = sentiment_list
 
-    return data_frame
+    return dataframe
 
 
 # We then provide the template name
@@ -70,7 +70,7 @@ def SentimentAnalysis():
     # Convert json to data frame
     uploaded_df = pd.DataFrame.from_dict(eval(uploaded_json))
     # Apply sentiment function to get sentiment score
-    uploaded_df_sentiment = vader_sentiment_scores(uploaded_df)
+    uploaded_df_sentiment = vaderAnalysis(uploaded_df)
     UploadedDfToHTML = uploaded_df_sentiment.to_html()
     return render_template('show_data.html', data=UploadedDfToHTML)
 
