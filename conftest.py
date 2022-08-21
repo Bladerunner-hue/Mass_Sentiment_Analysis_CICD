@@ -27,4 +27,3 @@ def test_coupound():
 #Statement verification to show the code executes well
 def test_assert():
     secrets == "you will never guess" 
-     return 0
