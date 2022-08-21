@@ -1,44 +1,24 @@
-# content of conftest.py
+# test_assert_examples.py
+
+from pyclbr import Function
+import secrets
 
 
-def pytest_configure(config):
-    """
-    Allows plugins and conftest files to perform initial configuration.
-    This hook is called for every plugin and initial conftest
-    file after command line options have been parsed.
-    """
+def test_uppercase():
+    assert "loud noises".upper() == "LOUD NOISES"
 
+def test_reversed():
+    assert list(reversed([1, 2, 3, 4])) == [4, 3, 2, 1]
 
-def pytest_sessionstart(session):
-    """
-    Called after the Session object has been created and
-    before performing collection and entering the run test loop.
-    """
+def test_some_primes():
+    assert 37 in {
+        num
+        for num in range(2, 50)
+        if not any(num % div == 0 for div in range(2, num))
+    }
 
+def test_list():
+    assert "you will never guess".upper() == "YOU WILL NEVER GUESS"
 
-def pytest_sessionfinish(session, exitstatus):
-    """
-    Called after whole test run finished, right before
-    returning the exit status to the system.
-    """
-
-
-def pytest_unconfigure(config):
-    """
-    called before test process is exited.
-    """
-
-# content of conftest.py
-
-pytest_plugins = [
-    'plugins.example_plugin',
-]
-
-
-# content of plugins/example_plugin.py
-def pytest_configure(config):
-    pass
-
-
-def pytest_unconfigure(config):
-    pass
+def test_assert():
+    secrets == "you will never guess" 

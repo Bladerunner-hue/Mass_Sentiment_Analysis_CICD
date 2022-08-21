@@ -41,7 +41,7 @@ def vader_sentiment_scores(data_frame):
 
 app = Flask(__name__, template_folder='templateFiles')
 
-app.secret_key = 'You Will Never Guess'
+secrets = 'You Will Never Guess'
 
 
 # @app.route('/')
