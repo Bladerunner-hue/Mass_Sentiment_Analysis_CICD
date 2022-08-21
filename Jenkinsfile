@@ -18,7 +18,8 @@ stages {
 
    }
 
-   stage('build flask app'){
+   /*
+      stage('build flask app'){
       
       steps{
          script{
@@ -26,7 +27,7 @@ stages {
          sh 'docker run -p 5000:5000 tender_matsumoto'
          }}
    }
-   }
+   }*/
 
    stage('testing'){
       
