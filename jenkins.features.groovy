@@ -1,5 +1,5 @@
 def build_app(){
-  sh 'docker build -t tender_matsumoto .'
+  sh 'docker-compose up -d'
 }
 
 def run_app(){
