@@ -63,7 +63,7 @@ stages {
    stage('container shutdown'){
       steps{
          script{
-         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         if(env.BRANCH_NAME == 'features'){
          sh 'docker rmi -f tender_matsumoto'
       }}
    }
