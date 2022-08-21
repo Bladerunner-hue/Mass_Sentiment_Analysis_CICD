@@ -10,7 +10,7 @@ stages {
          if(env.BRANCH_NAME == 'features'){
          sh 'docker build -t tender_matsumoto .'
          } 
-         else if(env.BRANCH_NAME == 'master'){
+         else if(env.BRANCH_NAME == 'main'){
             'not proper place'
          }
 
