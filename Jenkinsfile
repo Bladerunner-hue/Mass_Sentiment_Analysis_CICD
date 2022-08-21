@@ -24,6 +24,16 @@ stages {
    }
    }
 
+   stage('Acceptance tests'){
+      
+      steps{
+         script{
+         if(env.BRANCH_NAME == 'features'){
+         input 'Proceed to live development ?'
+         }}
+   }
+   }
+
    stage('container shutdown'){
       steps{
          script{
