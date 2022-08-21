@@ -32,21 +32,11 @@ def vader_sentiment_scores(data_frame):
     return data_frame
 
 
-# *** Backend operation
-# Read comment csv data
-# df = pd.read_csv('data/comment.csv')
-
-# WSGI Application
-# Provide template folder name
+# We then provide the template name
 
 app = Flask(__name__, template_folder='templateFiles')
 
-secrets = 'You Will Never Guess'
-
-
-# @app.route('/')
-# def welcome():
-#     return "Ths is the home page of Flask Application"
+secrets = 'You shall never know'
 
 @app.route('/')
 def index():
