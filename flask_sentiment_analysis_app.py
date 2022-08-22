@@ -7,7 +7,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 # We use vader for sentiment analysis
 def vaderAnalysis(dataframe):
     # we use Vader's sentiment analyzer
-    SID_obj = SentimentIntensityAnalyzer()
+    SentimentIntensityObject = SentimentIntensityAnalyzer()
 
     # We then calculate polarity that gives a sentiment dictionary
     # It contains pos, neg, neu, compound score
@@ -15,7 +15,7 @@ def vaderAnalysis(dataframe):
     for row_num in range(len(dataframe)):
         sentenceAnalysis = dataframe['Text'][row_num]
 
-        polarity_dict = SID_obj.polarity_scores(sentenceAnalysis)
+        polarity_dict = SentimentIntensityObject.polarity_scores(sentenceAnalysis)
 
         # Calculate overall sentiment by compound score
         if polarity_dict['compound'] >= 0.05:
