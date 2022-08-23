@@ -18,7 +18,7 @@ stages {
 
    }
 
-   stage('build flask app'){
+      stage('build flask app'){
       
       steps{
          script{
@@ -28,13 +28,24 @@ stages {
    }
    }
 
+   stage('testing'){
+      
+      steps{
+         script{
+         if(env.BRANCH_NAME == 'features'){
+         sh 'python3 conftest.py'
+         }}
+   }
+   }
+
    stage('release'){
       
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         echo 'release successful'
-         }}
+
+         echo 'release available'
+
    }
    }
 
@@ -56,10 +67,15 @@ stages {
       steps{
          script{
             // Variables for input
-                    def inputConfig
-                    def inputTest
-         if(env.BRANCH_NAME == 'features'){
-         input 'Proceed to live development ?'
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
+         sh 'git checkout features'
+         sh 'git pull'
+         sh 'git remote update'
+         sh 'git fetch '
+         sh 'git checkout main/jenkins'
+         withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
+            sh"git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
+         }
          }}
    }
    }
