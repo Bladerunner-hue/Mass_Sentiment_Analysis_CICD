@@ -78,7 +78,8 @@ stages {
          sh 'git checkout features'
          sh 'git pull'
          sh 'git remote update'
-         sh 'git fetch '
+         sh 'git fetch'
+         sh 'git checkout --track origin/main'
          sh 'git checkout main/jenkins'
          withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
             sh"git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
@@ -93,7 +94,7 @@ stages {
          if(env.BRANCH_NAME == 'features'){
          sh 'docker rmi -f tender_matsumoto'
       }
-      
+
       }
    }
  }
