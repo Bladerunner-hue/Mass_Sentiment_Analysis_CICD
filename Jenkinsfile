@@ -81,7 +81,7 @@ stages {
          sh 'git checkout origin/main'
          sh 'git merge features'
          withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'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s', usernameVariable:'CenturyGhost')]){
-            sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
+            sh "git push http://${CenturyGhost}:${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s}@github.com/CenturyGhost/rattrapage.git"
          }
          }}
    }
