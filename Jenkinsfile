@@ -66,10 +66,10 @@ stages {
       steps{
          script{
             // Variables for input
-         if(env.BRANCH_NAME == 'features'){
+         if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
          sh 'git checkout features'
          sh 'git pull'
-         sh 'git checkout main'
+         sh 'git checkout main/jenkins'
          sh 'git merge features'
          withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
             sh"git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
