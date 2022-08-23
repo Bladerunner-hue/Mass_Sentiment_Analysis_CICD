@@ -73,6 +73,8 @@ stages {
       
       steps{
          script{
+         def GIT_PASSWORD = 'gearsofwarhalo33'
+         def GIT_USERNAME = 'CenturyGhost'
             // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
          sh 'git checkout origin/features'
@@ -80,8 +82,8 @@ stages {
          sh 'git fetch'
          sh 'git checkout origin/main'
          sh 'git merge features'
-         withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'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s', usernameVariable:'CenturyGhost')]){
-            sh "git push http://${CenturyGhost}:${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s}@github.com/CenturyGhost/rattrapage.git"
+         withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
+            sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
          }
          }}
    }
