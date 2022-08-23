@@ -80,7 +80,7 @@ stages {
          sh 'git fetch'
          sh 'git checkout origin/main'
          sh 'git merge features'
-         withCredentials([usernamePassword(credentialsId : 'Jenkins Integration for CI/CD', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
+         withCredentials([usernamePassword(credentialsId : 'admin', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
             sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
          }
          }}
