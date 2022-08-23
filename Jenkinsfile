@@ -66,10 +66,14 @@ stages {
       steps{
          script{
             // Variables for input
-                    def inputConfig
-                    def inputTest
          if(env.BRANCH_NAME == 'features'){
-         input 'Proceed to live development ?'
+         sh 'git checkout features'
+         sh 'git pull'
+         sh 'git checkout main/jenkins'
+         sh 'git merge features'
+         withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
+            sh"git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
+         }
          }}
    }
    }
