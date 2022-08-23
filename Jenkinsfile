@@ -43,8 +43,9 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
+
          echo 'release available'
-         }}
+
    }
    }
 
