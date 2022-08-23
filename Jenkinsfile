@@ -71,7 +71,7 @@ stages {
          sh 'git pull'
          sh 'git remote update'
          sh 'git fetch '
-         sh 'git checkout '--track origin/main
+         sh 'git checkout --track origin/main'
          withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
             sh"git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
          }
