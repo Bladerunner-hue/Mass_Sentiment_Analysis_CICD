@@ -14,8 +14,8 @@ stages {
             'not proper place'
          }
 
-      }}
-
+         }
+      }
    }
 
       stage('build flask app'){
@@ -24,8 +24,10 @@ stages {
          script{
          if(env.BRANCH_NAME == 'features'){
          sh 'docker run -p 5000:5000 tender_matsumoto'
-         }}
-   }
+         }
+         
+         }
+      }
    }
 
    stage('testing'){
@@ -34,8 +36,10 @@ stages {
          script{
          if(env.BRANCH_NAME == 'features'){
          sh 'python3 conftest.py'
-         }}
-   }
+         }
+         
+         }
+      }
    }
 
    stage('release'){
@@ -45,9 +49,12 @@ stages {
          if(env.BRANCH_NAME == 'features'){
 
          echo 'release available'
-
+         }
+      
+         }
+      }
    }
-   }
+   
 
    stage('Accepting next step'){
       
@@ -85,8 +92,11 @@ stages {
          script{
          if(env.BRANCH_NAME == 'features'){
          sh 'docker rmi -f tender_matsumoto'
-      }}
+      }
+      
+      }
    }
  }
-}   
+
+   }
 }
