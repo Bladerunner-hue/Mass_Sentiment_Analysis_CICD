@@ -73,7 +73,7 @@ stages {
       
       steps{
          script{
-         def GIT_PASSWORD = 'gearsofwarhalo33'
+         def GIT_PASSWORD = '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'
          def GIT_USERNAME = 'CenturyGhost'
             // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
