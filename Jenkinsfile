@@ -78,7 +78,7 @@ stages {
          sh 'git checkout features'
          sh 'git pull'
          sh 'git fetch --all'
-         sh 'git checkout origin/main'
+         sh 'git checkout -t -b main/foo origin/main/foo'
          sh 'git merge features'
          withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
             sh"git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
