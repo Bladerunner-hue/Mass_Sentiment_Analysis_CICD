@@ -69,7 +69,6 @@ stages {
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
          sh 'git checkout features'
          sh 'git pull'
-         sh 'git fetch'
          sh 'git remote update'
          sh 'git fetch '
          sh 'git checkout '--track origin/main
