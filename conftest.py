@@ -1,5 +1,4 @@
 # test_assert_examples.py
-import flask_sentiment_analysis_app
 from pyclbr import Function
 import secrets
 
