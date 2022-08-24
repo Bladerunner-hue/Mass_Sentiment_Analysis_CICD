@@ -80,7 +80,7 @@ stages {
          sh 'git pull'
          sh 'git remote update'
          sh 'git fetch'
-         sh 'git checkout origin/main'
+         sh 'git checkout origin/master'
          sh 'git merge features'
          sh "git config user.email \"alexandre.nouar@gmail.com\""
          sh "git config user.name \"CenturyGhost\""
