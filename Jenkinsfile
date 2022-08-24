@@ -35,7 +35,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'python3 conftest.py'
+         sh 'python conftest.py'
          }
          
          }
