@@ -73,6 +73,8 @@ stages {
       
       steps{
          script{
+         import jenkins.model.*
+         jenkins = Jenkins.instance
          def passwordVariable = 'gearsofwarhalo33'
          def usernameVariable = 'CenturyGhost'
             // Variables for input
