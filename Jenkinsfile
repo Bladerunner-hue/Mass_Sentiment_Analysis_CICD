@@ -9,7 +9,6 @@ stages {
          script{
          if(env.BRANCH_NAME == 'features'){
          sh 'docker build -t tender_matsumoto .'
-         sh 'pip install -r requirements.txt' 
          } 
          else if(env.BRANCH_NAME == 'main'){
             'not proper place'
@@ -76,7 +75,7 @@ stages {
          script{
          def passwordVariable = 'gearsofwarhalo33'
          def usernameVariable = 'CenturyGhost'
-           
+            // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
          sh 'git checkout origin/features'
          sh 'git pull'
