@@ -87,6 +87,7 @@ stages {
          sh "git config user.name \"CenturyGhost\""
 withCredentials([gitUsernamePassword(credentialsId: 'GitHubb')]) {
 
+sh 'git fetch'
 sh 'git push origin/main'
 
                }
