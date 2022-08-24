@@ -87,7 +87,7 @@ stages {
          sh "git config user.name \"CenturyGhost\""
 withCredentials([gitUsernamePassword(credentialsId: 'GitHub')]) {
 
-'git push origin/main'
+sh 'git push origin/main'
 
                }
             }
