@@ -88,7 +88,7 @@ stages {
 withCredentials([gitUsernamePassword(credentialsId:'GitHubb')]) {
 sh 'git remote update'
 sh 'git fetch'
-sh 'git push main'
+sh 'git push https://github.com/CenturyGhost/rattrapage.git'
 
                }
             }
