@@ -1,6 +1,6 @@
 {
     "python.testing.pytestArgs": [
-        "/root/rattrapage-4/conftest.py"
+        "/rattrapage/conftest.py"
     ],
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false

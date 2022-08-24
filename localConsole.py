@@ -20,7 +20,7 @@ def ScoresofSentiment(sentenceAnalysis):
  
     print("Overall, the sentence is labeled as", end = " ")
  
-    # decide sentiment as positive, negative and neutral
+    # decide sentiment as positive, negative and neutralllllllll
     if sentimentDictionary['compound'] >= 0.05 :
             print("Positive")
     

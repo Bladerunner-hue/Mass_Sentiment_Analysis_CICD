@@ -73,19 +73,18 @@ stages {
       
       steps{
          script{
-         
-         
-         
-         def GIT_PASSWORD = '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'
-         def GIT_USERNAME = 'CenturyGhost'
+         def passwordVariable = 'gearsofwarhalo33'
+         def usernameVariable = 'CenturyGhost'
+            // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
-         sh 'git checkout features'
+         sh 'git checkout origin/features'
          sh 'git pull'
          sh 'git remote update'
-         sh 'git fetch '
-         sh 'git checkout main/jenkins'
+         sh 'git fetch'
+         sh 'git checkout origin/main'
+         sh 'git merge origin/features'
          withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
-            sh"git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
+            sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
          }
          }}
    }
@@ -97,7 +96,7 @@ stages {
          if(env.BRANCH_NAME == 'features'){
          sh 'docker rmi -f tender_matsumoto'
       }
-      
+
       }
    }
  }
