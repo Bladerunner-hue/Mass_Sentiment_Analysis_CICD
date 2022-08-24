@@ -85,7 +85,7 @@ stages {
          sh 'git merge origin/features'
          sh "git config user.email \"alexandre.nouar@gmail.com\""
          sh "git config user.name \"CenturyGhost\""
-withCredentials([gitUsernamePassword(credentialsId: 'GitHub-SSH')]) {
+withCredentials([gitUsernamePassword(credentialsId: 'GitHubb')]) {
 
 sh 'git push origin/main'
 
