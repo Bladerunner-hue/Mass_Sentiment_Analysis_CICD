@@ -87,7 +87,7 @@ stages {
             //sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
          sh 'git remote update'
          sh 'git fetch'
-         sh 'git push origin/main'
+         sh 'git push http://CenturyGhost:gearsofwarhalo33@github.com/CenturyGhost/rattrapage.git'
          }
          }}
    }
