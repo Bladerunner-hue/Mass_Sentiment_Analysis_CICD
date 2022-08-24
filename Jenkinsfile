@@ -88,7 +88,7 @@ stages {
 withCredentials([gitUsernamePassword(credentialsId:'GitHubb')]) {
 sh 'git remote update'
 sh 'git fetch'
-sh 'git push origin/main'
+sh 'git push main'
 
                }
             }
