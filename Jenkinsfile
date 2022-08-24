@@ -89,10 +89,11 @@ withCredentials([gitUsernamePassword(credentialsId: 'GitHub')]) {
 
 'git push origin/main'
 
-}
+               }
+            }
          }
-         }}
-   }}
+      }
+   }
    
 
    stage('container shutdown'){
@@ -107,3 +108,4 @@ withCredentials([gitUsernamePassword(credentialsId: 'GitHub')]) {
  }
 
    }
+}
