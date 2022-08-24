@@ -89,7 +89,7 @@ stages {
          }
          }}
    }
-   }
+   
 
    stage('container shutdown'){
       steps{
@@ -103,3 +103,4 @@ stages {
  }
 
    }
+}
