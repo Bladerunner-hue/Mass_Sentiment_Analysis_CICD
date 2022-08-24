@@ -73,21 +73,19 @@ stages {
       
       steps{
          script{
-         passwordVariable = 'gearsofwarhalo33'
-         usernameVariable = 'CenturyGhost'
+
             // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
-         sh 'git checkout origin/features'
+         sh 'git checkout features'
          sh 'git pull'
          sh 'git remote update'
          sh 'git fetch'
-         sh 'git checkout origin/main'
-         sh 'git merge origin/features'
+         sh 'git checkout main'
+         sh 'git merge features'
          sh "git config user.email \"alexandre.nouar@gmail.com\""
          sh "git config user.name \"CenturyGhost\""
 withCredentials([gitUsernamePassword(credentialsId:'GitHubb')]) {
-sh 'git remote update'
-sh 'git fetch'
+
 sh 'git push https://github.com/CenturyGhost/rattrapage.git'
 
                }
