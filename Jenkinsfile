@@ -9,6 +9,7 @@ stages {
          script{
          if(env.BRANCH_NAME == 'features'){
          sh 'docker build -t tender_matsumoto .'
+         sh 'pip install -r requirements.txt' 
          } 
          else if(env.BRANCH_NAME == 'main'){
             'not proper place'
@@ -35,7 +36,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'python conftest.py'
+         sh 'python3 conftest.py'
          }
          
          }
