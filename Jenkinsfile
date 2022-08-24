@@ -73,7 +73,7 @@ stages {
       
       steps{
          script{
-         passwordVariable = 'gearsofwarhalo33'
+         passwordVariable = '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'
          usernameVariable = 'CenturyGhost'
             // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
@@ -83,14 +83,11 @@ stages {
          sh 'git fetch'
          sh 'git checkout origin/main'
          sh 'git merge origin/features'
-         //withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
-            //sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
-         sh 'git remote update'
-         sh 'git fetch'
-         sh 'git push http://CenturyGhost:gearsofwarhalo33@github.com/CenturyGhost/rattrapage.git'
+         withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
+            sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
          }
          }}
-   }
+   }}
    
 
    stage('container shutdown'){
