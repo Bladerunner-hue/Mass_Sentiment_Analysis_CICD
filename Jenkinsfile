@@ -75,8 +75,6 @@ stages {
          script{
          def passwordVariable = 'gearsofwarhalo33'
          def usernameVariable = 'CenturyGhost'
-         def GIT_PASSWORD = 'gearsofwarhalo33'
-         def GIT_USERNAME = 'CenturyGhost'
            
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
          sh 'git checkout origin/features'
@@ -86,7 +84,7 @@ stages {
          sh 'git checkout origin/main'
          sh 'git merge origin/features'
          withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
-            sh "git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git"
+            sh 'git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git'
          }
          }}
    }
