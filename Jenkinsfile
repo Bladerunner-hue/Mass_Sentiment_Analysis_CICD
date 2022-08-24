@@ -83,8 +83,13 @@ stages {
          sh 'git fetch'
          sh 'git checkout origin/main'
          sh 'git merge origin/features'
-         withCredentials([usernamePassword(credentialsId : 'GitHub', passwordVariable:'GIT_PASSWORD', usernameVariable:'GIT_USERNAME')]){
-            sh 'git push http://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/CenturyGhost/rattrapage.git'
+         sh "git config user.email \"alexandre.nouar@gmail.com\""
+         sh "git config user.name \"CenturyGhost\""
+withCredentials([gitUsernamePassword(credentialsId: 'GitHub')]) {
+
+'git push origin/main'
+
+}
          }
          }}
    }}
@@ -102,4 +107,3 @@ stages {
  }
 
    }
-}
