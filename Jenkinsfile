@@ -73,7 +73,7 @@ stages {
       
       steps{
          script{
-         passwordVariable = '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'
+         passwordVariable = 'gearsofwarhalo33'
          usernameVariable = 'CenturyGhost'
             // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
