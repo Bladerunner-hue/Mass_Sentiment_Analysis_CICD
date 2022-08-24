@@ -73,9 +73,12 @@ stages {
       
       steps{
          script{
+         
+         
          def passwordVariable = 'gearsofwarhalo33'
          def usernameVariable = 'CenturyGhost'
-            // Variables for input
+         
+         
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
          sh 'git checkout origin/features'
          sh 'git pull'
