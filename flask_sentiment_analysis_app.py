@@ -36,7 +36,7 @@ def vaderAnalysis(dataframe):
 
 app = Flask(__name__, template_folder='templateFiles')
 
-#the secret key :)
+#the secret key
 app.secret_key = 'You Will Never Guess'
 
 @app.route('/')
