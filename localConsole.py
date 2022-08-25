@@ -52,7 +52,7 @@ if __name__ == "__main__" :
     ScoresofSentiment(sentenceAnalysis)
 
     print("I think this product is so-so.")
-    print("\nthe third sentence has the following results :")
+    print("\nthe fourth sentence has the following results :")
     sentence = ("I hate this product\n")
     # function calling
     ScoresofSentiment(sentenceAnalysis)
