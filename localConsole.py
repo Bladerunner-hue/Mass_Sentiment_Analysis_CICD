@@ -35,24 +35,10 @@ def ScoresofSentiment(sentenceAnalysis):
 # Driver code
 if __name__ == "__main__" :
  
-    print("it's very bad i don't like it")
     print("\nthe first sentence has the following results :")
     sentenceAnalysis = ("very bad i'm unhappy with the product\n")
     ScoresofSentiment(sentenceAnalysis)
     
-    print("I love it it's amazing")
     print("\nthe second sentence has the following results :")
     sentenceAnalysis = ("very bad i'm unhappy with the product\n")
-    ScoresofSentiment(sentenceAnalysis)
-
-    print("I hate this product")
-    print("\nthe third sentence has the following results :")
-    sentence = ("I hate this product\n")
-    # function calling
-    ScoresofSentiment(sentenceAnalysis)
-
-    print("I think this product is so-so.")
-    print("\nthe fourth sentence has the following results :")
-    sentence = ("I hate this product\n")
-    # function calling
     ScoresofSentiment(sentenceAnalysis)
