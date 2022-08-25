@@ -71,6 +71,7 @@ def SentimentAnalysis():
     uploaded_df = pd.DataFrame.from_dict(eval(uploaded_json))
     # Apply sentiment function to get sentiment score
     uploaded_df_sentiment = vaderAnalysis(uploaded_df)
+    #transform it in html form
     UploadedDfToHTML = uploaded_df_sentiment.to_html()
     return render_template('show_data.html', data=UploadedDfToHTML)
 
