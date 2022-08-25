@@ -8,5 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD [ "python", "./localConsole.py" ]
+CMD [ "python", "./localConsole.py", "./conftest.py" ]
+
 
