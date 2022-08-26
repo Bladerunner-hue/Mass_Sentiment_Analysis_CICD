@@ -69,7 +69,7 @@ stages {
    }
    }
 
-   stage('Master merging'){
+   stage('origin/main merging'){
       
       steps{
          script{
