@@ -17,7 +17,7 @@ stages {
          }
       }
    }
-//change change change
+//word
       stage('build flask app'){
       
       steps{
