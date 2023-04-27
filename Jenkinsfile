@@ -17,13 +17,14 @@ stages {
          }
       }
    }
-//word
+//change change change oui
+
       stage('build flask app'){
       
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker run -p 5000:5000 tender_matsumoto'
+         sh 'docker run -p 5000:5000 magical_wilbur'
          }
          
          }
