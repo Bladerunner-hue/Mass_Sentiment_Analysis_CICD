@@ -76,6 +76,6 @@ def SentimentAnalysis():
     UploadedDfToHTML = uploaded_df_sentiment.to_html()
     return render_template('show_data.html', data=UploadedDfToHTML)
 
-#r"ngreognrognaerùnig
+#Start
 if __name__ == '__main__':
     app.run(debug=True)
