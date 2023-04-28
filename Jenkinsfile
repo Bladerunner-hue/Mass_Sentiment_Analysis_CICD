@@ -8,7 +8,7 @@ stages {
       steps {
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker build -t VaderCICD'
+         bat 'docker build -t VaderCICD'
          } 
          else if(env.BRANCH_NAME == 'main'){
             'not proper place'
@@ -24,7 +24,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker run -p 5000:5000 VaderCICD'
+         bat 'docker run -p 5000:5000 VaderCICD'
          }
          
          }
@@ -36,7 +36,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'python3 conftest.py'
+         bat 'python3 conftest.py'
          }
          
          }
@@ -77,17 +77,17 @@ stages {
 
             // Variables for input
          if(env.BRANCH_NAME == 'features'||env.BRANCH_NAME == 'main'){
-         sh 'git checkout features'
-         sh 'git pull'
-         sh 'git remote update'
-         sh 'git fetch'
-         sh 'git checkout origin/main'
-         sh 'git merge features'
-         sh "git config user.email \"alexandre.nouar@gmail.com\""
-         sh "git config user.name \"CenturyGhost\""
+         bat 'git checkout features'
+         bat 'git pull'
+         bat 'git remote update'
+         bat 'git fetch'
+         bat 'git checkout origin/main'
+         bat 'git merge features'
+         bat "git config user.email \"alexandre.nouar@gmail.com\""
+         bat "git config user.name \"CenturyGhost\""
 withCredentials([gitUsernamePassword(credentialsId:'GitHubb')]) {
 
-sh 'git push https://github.com/CenturyGhost/rattrapage.git'
+bat 'git push https://github.com/CenturyGhost/rattrapage.git'
 
                }
             }
@@ -100,7 +100,7 @@ sh 'git push https://github.com/CenturyGhost/rattrapage.git'
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker rmi -f VaderCICD'
+         bat 'docker rmi -f VaderCICD'
       }
 
       }
