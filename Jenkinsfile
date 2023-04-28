@@ -8,7 +8,7 @@ stages {
       steps {
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker build -t tender_matsumoto .'
+         sh 'docker build -t VaderCICD .'
          } 
          else if(env.BRANCH_NAME == 'main'){
             'not proper place'
@@ -100,7 +100,7 @@ sh 'git push https://github.com/CenturyGhost/rattrapage.git'
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker rmi -f tender_matsumoto'
+         sh 'docker rmi -f VaderCICD'
       }
 
       }
