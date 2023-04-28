@@ -8,7 +8,7 @@ stages {
       steps {
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker build -t VaderCICD .'
+         sh 'docker build -t VaderCICD'
          } 
          else if(env.BRANCH_NAME == 'main'){
             'not proper place'
