@@ -24,7 +24,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         sh 'docker run -p 5000:5000 magical_wilbur'
+         sh 'docker run -p 5000:5000 VaderCICD'
          }
          
          }
