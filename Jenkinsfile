@@ -8,7 +8,7 @@ stages {
       steps {
          script{
          if(env.BRANCH_NAME == 'features'){
-         bat 'docker build -t VaderCICD'
+         bat 'docker build -t vadercicd'
          } 
          else if(env.BRANCH_NAME == 'main'){
             'not proper place'
@@ -24,7 +24,7 @@ stages {
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         bat 'docker run -p 5000:5000 VaderCICD'
+         bat 'docker run -p 5000:5000 vadercicd'
          }
          
          }
@@ -100,7 +100,7 @@ bat 'git push https://github.com/CenturyGhost/rattrapage.git'
       steps{
          script{
          if(env.BRANCH_NAME == 'features'){
-         bat 'docker rmi -f VaderCICD'
+         bat 'docker rmi -f vadercicd'
       }
 
       }
