@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "macros.html" import sentiment_badge, emotion_badge, score_meter, form_field %}
+
+{% block title %}Analyze Text - Sentiment Analyzer{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Analyze Text</h1>
+        <p class="mt-2 text-gray-600">Enter text to analyze sentiment and emotions</p>
+    </div>
+
+    <!-- Analysis Form -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <form method="POST" action="{{ url_for('main.analyze') }}">
+            {{ form.hidden_tag() }}
+
+            <div class="mb-6">
+                <label for="text" class="block text-sm font-medium text-gray-700 mb-2">
+                    Text to Analyze
+                </label>
+                {{ form.text(class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none", rows=5, placeholder="Enter text to analyze sentiment and emotions...") }}
+                {% if form.text.errors %}
+                <ul class="mt-1 text-sm text-red-600">
+                    {% for error in form.text.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+
+            <div class="mb-6 flex items-center">
+                {{ form.include_emotions(class="h-4 w-4 text-blue-600 rounded") }}
+                <label for="include_emotions" class="ml-2 text-sm text-gray-700">
+                    Include emotion detection (uses transformer model, slightly slower)
+                </label>
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                Analyze
+            </button>
+        </form>
+    </div>
+
+    <!-- Results -->
+    {% if result %}
+    <div class="bg-white rounded-xl shadow-lg p-6" id="results">
+        <h2 class="text-xl font-semibold text-gray-900 mb-6">Analysis Results</h2>
+
+        <!-- Sentiment Overview -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-700">Sentiment</h3>
+                {{ sentiment_badge(result.sentiment, result.confidence|default(result.scores.compound|abs), 'lg') }}
+            </div>
+
+            <div class="space-y-3">
+                {{ score_meter(result.scores.pos, label='Positive', color='green') }}
+                {{ score_meter(result.scores.neg, label='Negative', color='red') }}
+                {{ score_meter(result.scores.neu, label='Neutral', color='gray') }}
+            </div>
+
+            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Compound Score</span>
+                    <span class="font-medium text-gray-900">{{ "%.4f"|format(result.compound_score) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emotion Analysis (if available) -->
+        {% if result.primary_emotion %}
+        <div class="mb-8 border-t border-gray-200 pt-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-700">Primary Emotion</h3>
+                {{ emotion_badge(result.primary_emotion, result.confidence, 'lg') }}
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {% for emotion, score in result.emotion_scores.items()|sort(attribute=1, reverse=true) %}
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="text-xs text-gray-500 uppercase tracking-wide">{{ emotion }}</div>
+                    <div class="mt-1 flex items-baseline">
+                        <span class="text-xl font-bold text-gray-900">{{ (score * 100)|int }}</span>
+                        <span class="ml-1 text-sm text-gray-500">%</span>
+                    </div>
+                    <div class="mt-1 w-full bg-gray-200 rounded-full h-1">
+                        <div class="bg-blue-500 h-1 rounded-full" style="width: {{ (score * 100)|int }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Metadata -->
+        <div class="border-t border-gray-200 pt-6">
+            <div class="flex justify-between text-sm text-gray-500">
+                <span>Processing time: {{ result.processing_time_ms }}ms</span>
+                {% if result.id %}
+                <a href="{{ url_for('main.analysis_detail', analysis_id=result.id) }}"
+                   class="text-blue-600 hover:text-blue-700">
+                    View Details
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if result %}
+<script>
+    // Scroll to results
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+</script>
+{% endif %}
+{% endblock %}
