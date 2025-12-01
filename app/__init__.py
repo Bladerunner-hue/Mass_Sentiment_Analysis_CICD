@@ -70,6 +70,21 @@ def _init_extensions(app):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     jwt.init_app(app)
+
+    # Configure JWT callbacks
+    from app.models.user import User
+
+    @jwt.user_identity_loader
+    def user_identity_lookup(user):
+        """Define how to serialize user identity to JWT."""
+        return str(user)
+
+    @jwt.user_lookup_loader
+    def user_lookup_callback(_jwt_header, jwt_data):
+        """Define how to deserialize user identity from JWT."""
+        identity = jwt_data["sub"]
+        return User.query.get(int(identity))
+
     cache.init_app(app)
     csrf.init_app(app)
 
