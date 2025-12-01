@@ -29,6 +29,9 @@ pipeline {
                 sh '''
                     echo "Setting up Python environment..."
 
+                    # Install required system packages for Python venv
+                    sudo apt update && sudo apt install -y python3-venv python3-pip || true
+
                     # Try to use pyenv python3 if available, otherwise system python3
                     if command -v pyenv &> /dev/null && pyenv versions | grep -q "3.11.11"; then
                         echo "Found pyenv 3.11.11"
