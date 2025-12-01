@@ -51,6 +51,17 @@ class BaseConfig:
     SENTIMENT_MODEL_NAME = 'j-hartmann/emotion-english-distilroberta-base'
     SENTIMENT_BATCH_SIZE = 32
     SENTIMENT_MAX_TEXT_LENGTH = 5000
+    MODEL_CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.model_cache')
+    MAX_ANALYSIS_WORKERS = 4
+
+    # Database connection pooling (enhanced)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_size': 10,
+        'max_overflow': 20,
+        'pool_timeout': 30,
+    }
 
     # Pagination
     ITEMS_PER_PAGE = 20
@@ -133,6 +144,13 @@ class TestingConfig(BaseConfig):
 
     # Disable login required for some tests
     LOGIN_DISABLED = False
+
+    # SQLite doesn't support connection pooling
+    SQLALCHEMY_ENGINE_OPTIONS = {}
+
+    # Explicit JWT secret for testing
+    SECRET_KEY = 'test-secret-key'
+    JWT_SECRET_KEY = 'test-jwt-secret-key'
 
 
 config = {

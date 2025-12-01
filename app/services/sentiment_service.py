@@ -4,12 +4,21 @@ This module provides sentiment and emotion analysis using VADER for quick
 sentiment scoring and Hugging Face transformers for emotion detection.
 """
 
+import os
 import re
 import time
 import threading
+import gc
 from typing import Dict, List, Optional, Callable, Any
+from concurrent.futures import ThreadPoolExecutor
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
 
 
 class SentimentService:
@@ -36,20 +45,33 @@ class SentimentService:
     POSITIVE_THRESHOLD = 0.05
     NEGATIVE_THRESHOLD = -0.05
 
-    def __init__(self, model_name: str = None):
+    def __init__(self, model_name: str = None, cache_dir: str = None,
+                 max_workers: int = 4, memory_threshold: float = 0.8):
         """Initialize the sentiment service.
 
         Args:
             model_name: Hugging Face model name for emotion detection.
                        Defaults to j-hartmann/emotion-english-distilroberta-base
+            cache_dir: Directory to cache downloaded models
+            max_workers: Maximum worker threads for parallel processing
+            memory_threshold: Memory usage threshold for cleanup (0-1)
         """
         self.vader = SentimentIntensityAnalyzer()
         self.model_name = model_name or 'j-hartmann/emotion-english-distilroberta-base'
+        self.cache_dir = cache_dir or os.path.join(os.getcwd(), '.model_cache')
+
+        # Ensure cache directory exists
+        os.makedirs(self.cache_dir, exist_ok=True)
 
         # Lazy loaded components
         self._emotion_pipeline = None
         self._pipeline_lock = threading.Lock()
         self._device = None
+
+        # Performance optimizations
+        self.max_workers = max_workers
+        self.memory_threshold = memory_threshold
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
     def _get_device(self) -> int:
         """Get the device for model inference.
@@ -66,7 +88,7 @@ class SentimentService:
         return self._device
 
     def _load_emotion_model(self):
-        """Load the emotion detection model (thread-safe, lazy loading)."""
+        """Load the emotion detection model (thread-safe, lazy loading with caching)."""
         if self._emotion_pipeline is not None:
             return
 
@@ -77,13 +99,18 @@ class SentimentService:
 
             from transformers import pipeline
 
+            # Set cache directory for model downloads
+            os.environ['TRANSFORMERS_CACHE'] = self.cache_dir
+            os.environ['HF_HOME'] = self.cache_dir
+
             self._emotion_pipeline = pipeline(
                 "text-classification",
                 model=self.model_name,
                 device=self._get_device(),
                 return_all_scores=True,
                 truncation=True,
-                max_length=512
+                max_length=512,
+                cache_dir=self.cache_dir
             )
 
     @property
@@ -376,6 +403,96 @@ class SentimentService:
             progress_callback(total, total)
 
         return results
+
+    def _check_memory_usage(self) -> bool:
+        """Check if memory usage is above threshold.
+
+        Returns:
+            bool: True if memory usage is high
+        """
+        if not HAS_PSUTIL:
+            return False
+        memory = psutil.virtual_memory()
+        return memory.percent / 100 > self.memory_threshold
+
+    def _cleanup_memory(self):
+        """Force garbage collection and memory cleanup."""
+        if hasattr(self, '_emotion_pipeline') and self._emotion_pipeline:
+            # Clear any cached computations
+            if hasattr(self._emotion_pipeline.model, 'cache'):
+                self._emotion_pipeline.model.cache.clear()
+
+        gc.collect()
+
+    def analyze_batch_parallel(self, texts: List[str],
+                              include_emotions: bool = True,
+                              batch_size: int = 16) -> List[Dict[str, Any]]:
+        """Analyze texts using parallel processing for better performance.
+
+        Args:
+            texts: List of texts to analyze
+            include_emotions: Whether to include emotion analysis
+            batch_size: Size of batches for processing
+
+        Returns:
+            List of analysis results
+        """
+        if not texts:
+            return []
+
+        # Split texts into chunks for parallel processing
+        chunk_size = max(1, len(texts) // self.max_workers)
+        text_chunks = [texts[i:i + chunk_size]
+                      for i in range(0, len(texts), chunk_size)]
+
+        results = [None] * len(texts)
+        futures = []
+
+        # Submit parallel tasks
+        for i, chunk in enumerate(text_chunks):
+            start_idx = i * chunk_size
+            future = self.executor.submit(
+                self._process_chunk,
+                chunk, start_idx, include_emotions, batch_size
+            )
+            futures.append((future, start_idx))
+
+        # Collect results
+        for future, start_idx in futures:
+            try:
+                chunk_results = future.result()
+                for i, result in enumerate(chunk_results):
+                    results[start_idx + i] = result
+            except Exception as e:
+                # Handle errors gracefully
+                chunk_len = len(text_chunks[futures.index((future, start_idx))])
+                for i in range(chunk_len):
+                    results[start_idx + i] = {
+                        'error': str(e),
+                        'sentiment': 'neutral',
+                        'compound_score': 0.0
+                    }
+
+        # Memory cleanup
+        if self._check_memory_usage():
+            self._cleanup_memory()
+
+        return results
+
+    def _process_chunk(self, texts: List[str], start_idx: int,
+                      include_emotions: bool, batch_size: int) -> List[Dict[str, Any]]:
+        """Process a chunk of texts.
+
+        Args:
+            texts: Texts to process
+            start_idx: Starting index in original list
+            include_emotions: Whether to include emotions
+            batch_size: Batch size for transformer
+
+        Returns:
+            List of results for this chunk
+        """
+        return self.batch_analyze(texts, include_emotions, batch_size)
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about loaded models.
