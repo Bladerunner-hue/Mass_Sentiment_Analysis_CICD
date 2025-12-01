@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Dataset Manager - Sentiment Analyzer{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">📊 Dataset Manager</h1>
+        <p class="mt-2 text-gray-600">Browse, download, and manage datasets from Kaggle, HuggingFace, and X (Twitter)</p>
+    </div>
+
+    <!-- API Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Kaggle -->
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 {{ 'border-green-500' if apis_configured.kaggle else 'border-yellow-500' }}">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">🔷 Kaggle</h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        {% if apis_configured.kaggle %}
+                            <span class="text-green-600">✓ Connected</span>
+                        {% else %}
+                            <span class="text-yellow-600">⚠ Set KAGGLE_API_TOKEN</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="{{ url_for('datasets.browse', source='kaggle') }}" 
+                   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                    Browse
+                </a>
+            </div>
+        </div>
+
+        <!-- HuggingFace -->
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 {{ 'border-green-500' if apis_configured.huggingface else 'border-yellow-500' }}">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">🤗 HuggingFace</h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        {% if apis_configured.huggingface %}
+                            <span class="text-green-600">✓ Connected (Write Access)</span>
+                        {% else %}
+                            <span class="text-green-600">✓ Read Access (Public)</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="{{ url_for('datasets.browse', source='huggingface') }}" 
+                   class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm">
+                    Browse
+                </a>
+            </div>
+        </div>
+
+        <!-- X/Twitter -->
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 {{ 'border-green-500' if apis_configured.twitter else 'border-red-500' }}">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">𝕏 Twitter / X</h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                        {% if apis_configured.twitter %}
+                            <span class="text-green-600">✓ Connected</span>
+                        {% else %}
+                            <span class="text-red-600">✗ Set X_BEARER_TOKEN</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="{{ url_for('datasets.twitter') }}" 
+                   class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm {{ 'opacity-50 cursor-not-allowed' if not apis_configured.twitter else '' }}">
+                    Collect
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-lg shadow mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">🚀 Quick Actions</h2>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <button onclick="downloadPopularDataset('emotion')" 
+                    class="flex items-center justify-center p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition">
+                <span class="text-lg">😊 Emotion Dataset</span>
+            </button>
+            <button onclick="downloadPopularDataset('tweet_eval', 'sentiment')" 
+                    class="flex items-center justify-center p-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90 transition">
+                <span class="text-lg">🐦 TweetEval Sentiment</span>
+            </button>
+            <button onclick="downloadPopularDataset('dair-ai/emotion')" 
+                    class="flex items-center justify-center p-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:opacity-90 transition">
+                <span class="text-lg">💬 DAIR Emotion</span>
+            </button>
+            <button onclick="downloadKaggleDataset('kazanova/sentiment140')" 
+                    class="flex items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:opacity-90 transition">
+                <span class="text-lg">📊 Sentiment140</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Local Datasets -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-900">📁 Local Datasets</h2>
+            <button onclick="refreshLocalDatasets()" class="text-blue-600 hover:text-blue-800">
+                🔄 Refresh
+            </button>
+        </div>
+        
+        <div id="local-datasets-container" class="divide-y divide-gray-200">
+            {% if local_datasets %}
+                {% for dataset in local_datasets %}
+                <div class="p-6 hover:bg-gray-50 transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="p-3 bg-{{ 'blue' if dataset.type == 'raw' else 'green' }}-100 rounded-lg">
+                                <svg class="w-6 h-6 text-{{ 'blue' if dataset.type == 'raw' else 'green' }}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">{{ dataset.name }}</h3>
+                                <p class="text-sm text-gray-500">
+                                    {{ dataset.type | title }} • {{ dataset.num_files }} files • {{ "%.2f"|format(dataset.size_mb) }} MB
+                                </p>
+                                <p class="text-xs text-gray-400 mt-1 font-mono">{{ dataset.path }}</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="previewDataset('{{ dataset.path }}')" 
+                                    class="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm">
+                                👁 Preview
+                            </button>
+                            <button onclick="deleteDataset('{{ dataset.path }}')" 
+                                    class="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm">
+                                🗑 Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-12 text-center text-gray-500">
+                    <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                    </svg>
+                    <p class="text-lg">No local datasets yet</p>
+                    <p class="text-sm mt-2">Download datasets from Kaggle or HuggingFace to get started</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="preview-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-semibold" id="preview-title">Dataset Preview</h3>
+                <button onclick="closePreviewModal()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-auto max-h-[70vh]" id="preview-content">
+                <div class="animate-pulse">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Download Progress Toast -->
+<div id="download-toast" class="fixed bottom-4 right-4 hidden">
+    <div class="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-4">
+        <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span id="download-toast-message">Downloading...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Download HuggingFace dataset
+async function downloadPopularDataset(datasetId, subset = null) {
+    showDownloadToast(`Downloading ${datasetId}...`);
+    
+    try {
+        const response = await fetch('/datasets/api/hf/download', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                dataset_id: datasetId,
+                subset: subset,
+                split: 'train'
+            })
+        });
+        
+        const result = await response.json();
+        hideDownloadToast();
+        
+        if (result.success) {
+            alert(`✅ Downloaded ${datasetId}!\n\nRows: ${result.num_rows}\nPath: ${result.path}`);
+            location.reload();
+        } else {
+            alert(`❌ Error: ${result.error}`);
+        }
+    } catch (err) {
+        hideDownloadToast();
+        alert(`❌ Error: ${err.message}`);
+    }
+}
+
+// Download Kaggle dataset
+async function downloadKaggleDataset(datasetId) {
+    showDownloadToast(`Downloading ${datasetId} from Kaggle...`);
+    
+    try {
+        const response = await fetch('/datasets/api/kaggle/download', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({dataset_id: datasetId})
+        });
+        
+        const result = await response.json();
+        hideDownloadToast();
+        
+        if (result.success) {
+            alert(`✅ Downloaded ${datasetId}!\n\nFiles: ${result.files.length}\nTotal Size: ${result.total_size_mb.toFixed(2)} MB`);
+            location.reload();
+        } else {
+            alert(`❌ Error: ${result.error}`);
+        }
+    } catch (err) {
+        hideDownloadToast();
+        alert(`❌ Error: ${err.message}`);
+    }
+}
+
+// Preview dataset
+async function previewDataset(path) {
+    document.getElementById('preview-modal').classList.remove('hidden');
+    document.getElementById('preview-title').textContent = `Preview: ${path}`;
+    document.getElementById('preview-content').innerHTML = '<div class="animate-pulse text-center py-8">Loading preview...</div>';
+    
+    try {
+        const response = await fetch('/datasets/api/local/preview', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({path: path, num_rows: 20})
+        });
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            document.getElementById('preview-content').innerHTML = `<div class="text-red-600">Error: ${result.error}</div>`;
+            return;
+        }
+        
+        // Build preview HTML
+        let html = `
+            <div class="mb-4 p-4 bg-gray-100 rounded-lg">
+                <h4 class="font-semibold mb-2">📊 Statistics</h4>
+                <p><strong>Total Rows:</strong> ${result.stats.total_rows.toLocaleString()}</p>
+                <p><strong>Columns:</strong> ${result.stats.columns.join(', ')}</p>
+                <p><strong>Memory:</strong> ${result.stats.memory_mb.toFixed(2)} MB</p>
+            </div>
+        `;
+        
+        if (result.preview && result.preview.length > 0) {
+            html += '<div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200">';
+            html += '<thead class="bg-gray-50"><tr>';
+            Object.keys(result.preview[0]).forEach(col => {
+                html += `<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">${col}</th>`;
+            });
+            html += '</tr></thead><tbody class="divide-y divide-gray-200">';
+            
+            result.preview.forEach(row => {
+                html += '<tr>';
+                Object.values(row).forEach(val => {
+                    const displayVal = typeof val === 'string' ? val.substring(0, 100) : val;
+                    html += `<td class="px-4 py-2 text-sm text-gray-900 max-w-xs truncate">${displayVal}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+        
+        document.getElementById('preview-content').innerHTML = html;
+    } catch (err) {
+        document.getElementById('preview-content').innerHTML = `<div class="text-red-600">Error: ${err.message}</div>`;
+    }
+}
+
+// Delete dataset
+async function deleteDataset(path) {
+    if (!confirm(`Are you sure you want to delete:\n${path}`)) return;
+    
+    try {
+        const response = await fetch('/datasets/api/local/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({path: path})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Dataset deleted');
+            location.reload();
+        } else {
+            alert(`❌ Error: ${result.error}`);
+        }
+    } catch (err) {
+        alert(`❌ Error: ${err.message}`);
+    }
+}
+
+// Close preview modal
+function closePreviewModal() {
+    document.getElementById('preview-modal').classList.add('hidden');
+}
+
+// Refresh local datasets
+function refreshLocalDatasets() {
+    location.reload();
+}
+
+// Toast helpers
+function showDownloadToast(message) {
+    document.getElementById('download-toast-message').textContent = message;
+    document.getElementById('download-toast').classList.remove('hidden');
+}
+
+function hideDownloadToast() {
+    document.getElementById('download-toast').classList.add('hidden');
+}
+
+// Close modal on escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePreviewModal();
+});
+</script>
+{% endblock %}
