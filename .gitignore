@@ -28,4 +28,4 @@ build/
 *.so
 .DS_Store
 .vscode/settings.json
-.idea/
+.idea/app/static/dist/output.css
