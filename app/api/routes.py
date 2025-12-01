@@ -2,6 +2,7 @@
 
 import time
 from functools import wraps
+import re
 
 from flask import request, current_app
 from flask_restx import Namespace, Resource, fields
@@ -15,6 +16,8 @@ from app.extensions import db, limiter
 from app.models.user import User
 from app.models.analysis import SentimentAnalysis
 from app.api.schemas import TextInputSchema, BatchTextInputSchema
+from app.services.sentiment_service import SentimentService
+from app.services.custom_sentiment_service import CustomSentimentService
 
 
 def validate_text_input(text: str, max_length: int = 5000) -> dict:
@@ -93,6 +96,21 @@ def get_sentiment_service():
     if _sentiment_service is None:
         _sentiment_service = SentimentService()
     return _sentiment_service
+
+
+_custom_service = None
+
+
+def get_custom_service():
+    """Get or create custom PyTorch sentiment service."""
+    global _custom_service
+    if _custom_service is None:
+        try:
+            _custom_service = CustomSentimentService()
+        except Exception as exc:
+            current_app.logger.warning("CustomSentimentService unavailable: %s", exc)
+            _custom_service = None
+    return _custom_service
 
 
 # API Key authentication decorator
@@ -227,6 +245,37 @@ class AnalyzeText(Resource):
             current_app.logger.error(f'Failed to save analysis: {e}')
             db.session.rollback()
 
+        return result
+
+
+@analysis_ns.route('/custom/analyze')
+class CustomAnalyzeText(Resource):
+    """Single text analysis using the custom PyTorch model (BiLSTM + Attention)."""
+
+    @analysis_ns.expect(text_input_model)
+    @analysis_ns.marshal_with(analysis_result_model)
+    @analysis_ns.doc(
+        security='Bearer',
+        responses={
+            200: 'Analysis completed successfully',
+            400: 'Invalid input',
+            503: 'Custom model unavailable'
+        }
+    )
+    @limiter.limit("50 per hour;200 per day")
+    @jwt_required()
+    def post(self):
+        schema = TextInputSchema()
+        try:
+            data = schema.load(request.get_json())
+        except ValidationError as err:
+            analysis_ns.abort(400, f'Validation error: {err.messages}')
+
+        service = get_custom_service()
+        if service is None:
+            analysis_ns.abort(503, 'Custom model not available; falling back to transformer.')
+
+        result = service.analyze(data['text'])
         return result
 
 
