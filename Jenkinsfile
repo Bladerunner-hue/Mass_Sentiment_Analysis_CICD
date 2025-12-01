@@ -27,23 +27,11 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''
-                    echo "Checking Python environment..."
+                    echo "Setting up Python environment..."
 
-                    # Check for ml-torch environment
-                    if command -v conda &> /dev/null && conda env list | grep -q "ml-torch"; then
-                        echo "Found ml-torch conda environment"
-                        eval "$(conda shell.bash hook)"
-                        conda activate ml-torch
-                        PYTHON_CMD="python"
-                    # Check for pyenv 3.11.11
-                    elif command -v pyenv &> /dev/null && pyenv versions | grep -q "3.11.11"; then
-                        echo "Found pyenv 3.11.11"
-                        pyenv shell 3.11.11
-                        PYTHON_CMD="python"
-                    else
-                        echo "Using system python3"
-                        PYTHON_CMD="python3"
-                    fi
+                    # Use system python3 (available in Jenkins environment)
+                    PYTHON_CMD="python3"
+                    echo "Using system python3"
 
                     echo "Setting up Python virtual environment..."
                     $PYTHON_CMD -m venv ${VENV_PATH}
@@ -220,6 +208,35 @@ pipeline {
                 sh '''
                     . ${VENV_PATH}/bin/activate
                     echo "Staging deployment would happen here"
+                '''
+            }
+        }
+
+        stage('Manual Validation') {
+            when {
+                branch 'features'
+            }
+            steps {
+                timeout(time: 24, unit: 'HOURS') {
+                    input message: 'Validate the build and approve merge to main?', ok: 'Approve and Merge'
+                }
+            }
+        }
+
+        stage('Merge to Main') {
+            when {
+                branch 'features'
+            }
+            steps {
+                sh '''
+                    echo "Merging features branch to main..."
+                    git config --global user.email "jenkins@localhost"
+                    git config --global user.name "Jenkins CI"
+                    git checkout main
+                    git pull origin main
+                    git merge features --no-ff -m "Merge features into main [ci skip]"
+                    git push origin main
+                    echo "Successfully merged features to main"
                 '''
             }
         }
