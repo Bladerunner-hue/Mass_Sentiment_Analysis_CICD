@@ -29,3 +29,4 @@ build/
 .DS_Store
 .vscode/settings.json
 .idea/app/static/dist/output.css
+models/checkpoints/
