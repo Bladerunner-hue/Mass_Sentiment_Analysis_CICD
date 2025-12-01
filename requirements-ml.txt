@@ -1,0 +1,3 @@
+# Optional heavy dependencies for custom Spark + PyTorch pipeline
+pyspark>=3.4.0
+petastorm>=0.12.0
