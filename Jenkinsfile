@@ -27,8 +27,26 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''
+                    echo "Checking Python environment..."
+
+                    # Check for ml-torch environment
+                    if command -v conda &> /dev/null && conda env list | grep -q "ml-torch"; then
+                        echo "Found ml-torch conda environment"
+                        eval "$(conda shell.bash hook)"
+                        conda activate ml-torch
+                        PYTHON_CMD="python"
+                    # Check for pyenv 3.11.11
+                    elif command -v pyenv &> /dev/null && pyenv versions | grep -q "3.11.11"; then
+                        echo "Found pyenv 3.11.11"
+                        pyenv shell 3.11.11
+                        PYTHON_CMD="python"
+                    else
+                        echo "Using system python3"
+                        PYTHON_CMD="python3"
+                    fi
+
                     echo "Setting up Python virtual environment..."
-                    python3 -m venv ${VENV_PATH}
+                    $PYTHON_CMD -m venv ${VENV_PATH}
                     . ${VENV_PATH}/bin/activate
                     pip install --upgrade pip wheel setuptools
                     pip install -r requirements.txt
