@@ -16,6 +16,74 @@ from app.models.user import User
 from app.models.analysis import SentimentAnalysis
 from app.services.sentiment_service import SentimentService
 
+import re
+
+
+def validate_text_input(text: str, max_length: int = 5000) -> dict:
+    """Validate and sanitize text input.
+
+    Args:
+        text: Input text to validate
+        max_length: Maximum allowed length
+
+    Returns:
+        dict: Validation result with 'valid', 'text', and 'error' keys
+    """
+    if not text or not isinstance(text, str):
+        return {'valid': False, 'error': 'Text is required and must be a string'}
+
+    text = text.strip()
+    if not text:
+        return {'valid': False, 'error': 'Text cannot be empty'}
+
+    if len(text) > max_length:
+        return {'valid': False, 'error': f'Text exceeds maximum length of {max_length} characters'}
+
+    # Basic HTML tag removal (simple approach without bleach)
+    import re as regex
+    sanitized = regex.sub(r'<[^>]+>', '', text).strip()
+
+    # Check for suspicious patterns (basic protection)
+    suspicious_patterns = [
+        r'<script', r'javascript:', r'on\w+\s*=', r'eval\s*\(',
+        r'document\.', r'window\.', r'location\.'
+    ]
+
+    for pattern in suspicious_patterns:
+        if re.search(pattern, sanitized, re.IGNORECASE):
+            return {'valid': False, 'error': 'Text contains potentially dangerous content'}
+
+    return {'valid': True, 'text': sanitized}
+
+
+def validate_batch_input(texts: list, max_texts: int = 1000) -> dict:
+    """Validate batch text input.
+
+    Args:
+        texts: List of texts to validate
+        max_texts: Maximum number of texts allowed
+
+    Returns:
+        dict: Validation result
+    """
+    if not texts or not isinstance(texts, list):
+        return {'valid': False, 'error': 'Texts must be a non-empty list'}
+
+    if len(texts) > max_texts:
+        return {'valid': False, 'error': f'Batch size exceeds maximum of {max_texts} texts'}
+
+    if len(texts) == 0:
+        return {'valid': False, 'error': 'Texts list cannot be empty'}
+
+    validated_texts = []
+    for i, text in enumerate(texts):
+        validation = validate_text_input(text)
+        if not validation['valid']:
+            return {'valid': False, 'error': f'Text {i}: {validation["error"]}'}
+        validated_texts.append(validation['text'])
+
+    return {'valid': True, 'texts': validated_texts}
+
 
 # Initialize sentiment service
 _sentiment_service = None
@@ -138,12 +206,12 @@ class AnalyzeText(Resource):
         if not data or 'text' not in data:
             analysis_ns.abort(400, 'Text field is required')
 
-        text = data['text']
-        if not text or not text.strip():
-            analysis_ns.abort(400, 'Text cannot be empty')
+        # Validate and sanitize input
+        validation = validate_text_input(data['text'])
+        if not validation['valid']:
+            analysis_ns.abort(400, validation['error'])
 
-        if len(text) > 5000:
-            analysis_ns.abort(400, 'Text exceeds maximum length of 5000 characters')
+        text = validation['text']
 
         # Perform analysis
         service = get_sentiment_service()
@@ -228,16 +296,12 @@ class BatchAnalyze(Resource):
         if not data or 'texts' not in data:
             analysis_ns.abort(400, 'Texts field is required')
 
-        texts = data['texts']
-        if not isinstance(texts, list):
-            analysis_ns.abort(400, 'Texts must be a list')
+        # Validate batch input
+        validation = validate_batch_input(data['texts'], max_texts=100)
+        if not validation['valid']:
+            analysis_ns.abort(400, validation['error'])
 
-        if len(texts) == 0:
-            analysis_ns.abort(400, 'Texts list cannot be empty')
-
-        if len(texts) > 100:
-            analysis_ns.abort(400, 'Maximum 100 texts per request')
-
+        texts = validation['texts']
         include_emotions = data.get('include_emotions', True)
 
         start_time = time.time()
