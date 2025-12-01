@@ -11,6 +11,11 @@ Usage:
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 from app import create_app
 
 # Create the application instance

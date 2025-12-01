@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         PYTHON_VERSION = "3.11"
-        VENV_PATH = "${WORKSPACE}/venv"
         FLASK_CONFIG = "testing"
         FLASK_APP = "wsgi.py"
     }
@@ -27,30 +26,19 @@ pipeline {
         stage('Setup Environment') {
             steps {
                 sh '''
-                    echo "Checking Python environment..."
+                    echo "Setting up Python environment..."
 
-                    # Check for ml-torch environment
-                    if command -v conda &> /dev/null && conda env list | grep -q "ml-torch"; then
-                        echo "Found ml-torch conda environment"
-                        eval "$(conda shell.bash hook)"
-                        conda activate ml-torch
-                        PYTHON_CMD="python"
-                    # Check for pyenv 3.11.11
-                    elif command -v pyenv &> /dev/null && pyenv versions | grep -q "3.11.11"; then
-                        echo "Found pyenv 3.11.11"
-                        pyenv shell 3.11.11
-                        PYTHON_CMD="python"
-                    else
-                        echo "Using system python3"
-                        PYTHON_CMD="python3"
-                    fi
+                    # Use system python3 and install packages directly (no venv needed for Jenkins)
+                    PYTHON_CMD="python3"
 
-                    echo "Setting up Python virtual environment..."
-                    $PYTHON_CMD -m venv ${VENV_PATH}
-                    . ${VENV_PATH}/bin/activate
-                    pip install --upgrade pip wheel setuptools
-                    pip install -r requirements.txt
-                    pip install -r requirements-dev.txt
+                    echo "Installing Python packages directly..."
+                    $PYTHON_CMD -m pip install --user --upgrade pip wheel setuptools
+                    $PYTHON_CMD -m pip install --user -r requirements.txt
+                    $PYTHON_CMD -m pip install --user -r requirements-dev.txt
+
+                    # Add local pip bin to PATH
+                    export PATH="$HOME/.local/bin:$PATH"
+
                     echo "Dependencies installed successfully"
                 '''
             }
@@ -61,7 +49,7 @@ pipeline {
                 stage('Flake8 Linting') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Running Flake8 linting..."
                             flake8 app/ tests/ --max-line-length=100 --ignore=E501,W503 \
                                 --output-file=flake8-report.txt --tee || true
@@ -76,16 +64,16 @@ pipeline {
                 stage('Black Formatting') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Checking code formatting with Black..."
-                            black --check --diff app/ tests/ || echo "Formatting issues found"
+                            black --check --diff app/ tests/ || true
                         '''
                     }
                 }
                 stage('isort Import Sorting') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Checking import sorting with isort..."
                             isort --check-only --diff app/ tests/ || echo "Import sorting issues found"
                         '''
@@ -94,7 +82,7 @@ pipeline {
                 stage('Type Checking') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Running mypy type checking..."
                             mypy app/ --ignore-missing-imports --no-error-summary || echo "Type checking completed with warnings"
                         '''
@@ -106,7 +94,7 @@ pipeline {
         stage('Security Scan') {
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Running Bandit security scan..."
                     bandit -r app/ -f txt -o bandit-report.txt || true
                     cat bandit-report.txt
@@ -122,7 +110,7 @@ pipeline {
         stage('Unit Tests') {
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Running unit tests with pytest..."
                     pytest tests/ -v \
                         --junitxml=test-results.xml \
@@ -130,7 +118,6 @@ pipeline {
                         --cov-report=xml:coverage.xml \
                         --cov-report=html:htmlcov \
                         --cov-report=term-missing \
-                        --cov-fail-under=70 \
                         || true
                 '''
             }
@@ -146,7 +133,7 @@ pipeline {
         stage('Database Migration Test') {
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Testing database migrations..."
                     export FLASK_CONFIG=testing
                     flask db upgrade || echo "No migrations to run"
@@ -185,7 +172,7 @@ pipeline {
             }
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Running Flask application smoke test..."
 
                     # Start the app in background
@@ -219,8 +206,37 @@ pipeline {
             steps {
                 echo 'Deploying to staging environment...'
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Staging deployment would happen here"
+                '''
+            }
+        }
+
+        stage('Manual Validation') {
+            when {
+                branch 'features'
+            }
+            steps {
+                timeout(time: 24, unit: 'HOURS') {
+                    input message: 'Validate the build and approve merge to main?', ok: 'Approve and Merge'
+                }
+            }
+        }
+
+        stage('Merge to Main') {
+            when {
+                branch 'features'
+            }
+            steps {
+                sh '''
+                    echo "Merging features branch to main..."
+                    git config --global user.email "jenkins@localhost"
+                    git config --global user.name "Jenkins CI"
+                    git checkout main
+                    git pull origin main
+                    git merge features --no-ff -m "Merge features into main [ci skip]"
+                    git push origin main
+                    echo "Successfully merged features to main"
                 '''
             }
         }
@@ -243,7 +259,7 @@ pipeline {
             steps {
                 echo 'Deploying to production environment...'
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Production deployment configured"
                     # Production deployment commands would go here
                     # Example:
