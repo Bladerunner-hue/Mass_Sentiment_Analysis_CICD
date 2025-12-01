@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}About - Sentiment Analyzer{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <h1 class="text-4xl font-bold text-gray-900 mb-6">About Sentiment Analyzer</h1>
+
+    <div class="prose prose-lg max-w-none">
+        <p class="text-xl text-gray-600 mb-8">
+            Sentiment Analyzer is a sophisticated AI-powered application for analyzing
+            sentiment and emotions in text. Built with modern technologies and production-ready
+            architecture, it demonstrates full-stack development expertise and ML integration.
+        </p>
+
+        <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Technology Stack</h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">Backend</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>Flask 3.x with Application Factory pattern</li>
+                        <li>SQLAlchemy 2.x with PostgreSQL/SQLite</li>
+                        <li>Flask-RESTX with Swagger documentation</li>
+                        <li>Celery for background task processing</li>
+                        <li>JWT authentication</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">ML/NLP</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>VADER for quick sentiment analysis</li>
+                        <li>Hugging Face Transformers</li>
+                        <li>DistilRoBERTa emotion detection</li>
+                        <li>7 emotion classes detection</li>
+                        <li>Batch processing with GPU support</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">Frontend</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>Tailwind CSS 3.x</li>
+                        <li>Chart.js for visualizations</li>
+                        <li>Server-Sent Events (SSE)</li>
+                        <li>Responsive design</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2">DevOps</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>Jenkins CI/CD pipeline</li>
+                        <li>Comprehensive test suite</li>
+                        <li>Code quality checks</li>
+                        <li>Security scanning</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Features</h2>
+
+            <div class="space-y-4">
+                <div class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <div>
+                        <h3 class="font-medium text-gray-900">Real-time Analysis</h3>
+                        <p class="text-gray-600">Instant sentiment and emotion detection with sub-second response times.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <div>
+                        <h3 class="font-medium text-gray-900">Batch Processing</h3>
+                        <p class="text-gray-600">Upload CSV files with thousands of texts and track progress in real-time.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <div>
+                        <h3 class="font-medium text-gray-900">REST API</h3>
+                        <p class="text-gray-600">Full-featured API with Swagger documentation for integration.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <div>
+                        <h3 class="font-medium text-gray-900">7 Emotions</h3>
+                        <p class="text-gray-600">Detect anger, disgust, fear, joy, neutral, sadness, and surprise.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-blue-50 rounded-xl p-8">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-4">Get Started</h2>
+            <p class="text-gray-600 mb-4">
+                Create a free account to start analyzing text sentiment and emotions.
+                Access the API documentation for integration options.
+            </p>
+            <div class="flex gap-4">
+                <a href="{{ url_for('auth.register') }}"
+                   class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                    Create Account
+                </a>
+                <a href="{{ url_for('main.api_docs') }}"
+                   class="bg-white text-blue-600 px-6 py-3 rounded-lg border border-blue-600 hover:bg-blue-50 transition-colors">
+                    API Documentation
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

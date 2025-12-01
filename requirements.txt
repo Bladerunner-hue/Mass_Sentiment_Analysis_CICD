@@ -1,5 +1,58 @@
-# To ensure app dependencies are ported from your virtual environment/host machine into your container, run 'pip freeze > requirements.txt' in the terminal to overwrite this file
-pandas~=1.4.3
-Flask~=2.2.2
-vaderSentiment~=3.3.2
-Pytest~=7.1.2
+# Flask and core extensions
+Flask>=3.0.0
+Flask-SQLAlchemy>=3.1.0
+Flask-Migrate>=4.0.0
+Flask-Login>=0.6.3
+Flask-JWT-Extended>=4.6.0
+Flask-RESTX>=1.3.0
+Flask-Caching>=2.3.0
+Flask-Limiter>=3.5.0
+Flask-WTF>=1.2.0
+
+# Database
+SQLAlchemy>=2.0.0
+
+# ML/NLP
+transformers>=4.35.0
+torch>=2.0.0
+vaderSentiment>=3.3.2
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Task queue
+celery>=5.3.0
+redis>=5.0.0
+
+# Production server
+gunicorn>=21.0.0
+
+# Database drivers (optional based on deployment)
+psycopg2-binary>=2.9.9
+
+# Utilities
+python-dotenv>=1.0.0
+Werkzeug>=3.0.0
+marshmallow>=3.20.0
+email-validator>=2.0.0
+flask-cors>=4.0.0
+
+# Streaming and real-time features
+tweepy>=4.14.0
+flask-socketio>=5.3.0
+python-socketio>=5.10.0
+sseclient-py>=1.7.0
+
+# Apache Spark integration
+pyspark>=3.5.0
+findspark>=2.0.1
+
+# Monitoring and metrics
+prometheus-flask-exporter>=0.23.0
+grafana-api>=1.0.3
+
+# Additional data sources
+requests>=2.31.0
+feedparser>=6.0.10
+newspaper3k>=0.2.8

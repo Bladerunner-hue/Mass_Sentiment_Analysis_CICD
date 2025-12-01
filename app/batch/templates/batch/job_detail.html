@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% from "macros.html" import progress_bar, sentiment_badge, confirm_button %}
+
+{% block title %}Job #{{ job.id }} - Batch Processing{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <a href="{{ url_for('batch.index') }}" class="text-blue-600 hover:text-blue-700 text-sm">
+            &larr; Back to Batch Jobs
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">{{ job.filename }}</h1>
+        <p class="mt-2 text-gray-600">Job #{{ job.id }} &bull; {{ job.total_records }} records</p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Processing Status</h2>
+            {% if job.status == 'completed' %}
+            <span class="px-4 py-2 bg-green-100 text-green-800 rounded-full font-medium">
+                Completed
+            </span>
+            {% elif job.status == 'processing' %}
+            <span class="px-4 py-2 bg-blue-100 text-blue-800 rounded-full font-medium animate-pulse">
+                Processing
+            </span>
+            {% elif job.status == 'failed' %}
+            <span class="px-4 py-2 bg-red-100 text-red-800 rounded-full font-medium">
+                Failed
+            </span>
+            {% else %}
+            <span class="px-4 py-2 bg-gray-100 text-gray-800 rounded-full font-medium">
+                Pending
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-4">
+            <div class="flex justify-between text-sm text-gray-600 mb-2">
+                <span>Progress</span>
+                <span id="progress-text">{{ job.progress_percent }}%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div id="progress-bar"
+                     class="bg-blue-600 h-4 rounded-full transition-all duration-300 {% if job.status == 'processing' %}animate-pulse{% endif %}"
+                     style="width: {{ job.progress_percent }}%">
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+                <span class="text-gray-500">Processed</span>
+                <p class="font-semibold text-gray-900" id="processed-count">{{ job.processed_records }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500">Total</span>
+                <p class="font-semibold text-gray-900">{{ job.total_records }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500">Started</span>
+                <p class="font-semibold text-gray-900">
+                    {% if job.started_at %}{{ job.started_at.strftime('%H:%M:%S') }}{% else %}-{% endif %}
+                </p>
+            </div>
+            <div>
+                <span class="text-gray-500">Duration</span>
+                <p class="font-semibold text-gray-900" id="duration">
+                    {% if job.duration_seconds %}{{ job.duration_seconds|int }}s{% else %}-{% endif %}
+                </p>
+            </div>
+        </div>
+
+        {% if job.error_message %}
+        <div class="mt-4 p-4 bg-red-50 rounded-lg">
+            <p class="text-sm text-red-700">{{ job.error_message }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Results (if completed) -->
+    {% if job.status == 'completed' %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <!-- Sentiment Distribution -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Sentiment Distribution</h3>
+            <div class="h-64">
+                <canvas id="sentimentChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Statistics</h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <span class="text-green-700">Positive</span>
+                    <span class="font-bold text-green-800" id="positive-count">{{ job.positive_count }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                    <span class="text-red-700">Negative</span>
+                    <span class="font-bold text-red-800" id="negative-count">{{ job.negative_count }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="text-gray-700">Neutral</span>
+                    <span class="font-bold text-gray-800" id="neutral-count">{{ job.neutral_count }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emotion Distribution (if available) -->
+    {% if job.emotion_counts %}
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Emotion Distribution</h3>
+        <div class="h-64">
+            <canvas id="emotionChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+        <div class="flex flex-wrap gap-4">
+            {% if job.status == 'completed' %}
+            <a href="{{ url_for('batch.download_results', job_id=job.id) }}"
+               class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                Download Results
+            </a>
+            {% endif %}
+            {{ confirm_button('Delete Job', url_for('batch.delete_job', job_id=job.id), confirm_message='Delete this batch job and its results?') }}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if job.status == 'processing' %}
+<script>
+// Real-time progress updates via SSE
+const eventSource = new EventSource('{{ url_for("batch.job_progress", job_id=job.id) }}');
+
+eventSource.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+
+    // Update progress bar
+    document.getElementById('progress-bar').style.width = data.progress + '%';
+    document.getElementById('progress-text').textContent = data.progress + '%';
+    document.getElementById('processed-count').textContent = data.processed;
+
+    // Update stats
+    if (data.sentiment) {
+        document.getElementById('positive-count')?.textContent = data.sentiment.positive;
+        document.getElementById('negative-count')?.textContent = data.sentiment.negative;
+        document.getElementById('neutral-count')?.textContent = data.sentiment.neutral;
+    }
+
+    // Check if completed
+    if (data.status === 'completed' || data.status === 'failed') {
+        eventSource.close();
+        // Reload page to show final results
+        setTimeout(() => location.reload(), 1000);
+    }
+};
+
+eventSource.onerror = function(event) {
+    console.error('SSE error:', event);
+    eventSource.close();
+};
+</script>
+{% endif %}
+
+{% if job.status == 'completed' %}
+<script>
+// Sentiment Distribution Chart
+const sentimentCtx = document.getElementById('sentimentChart').getContext('2d');
+new Chart(sentimentCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Positive', 'Negative', 'Neutral'],
+        datasets: [{
+            data: [{{ job.positive_count }}, {{ job.negative_count }}, {{ job.neutral_count }}],
+            backgroundColor: ['#22c55e', '#ef4444', '#64748b'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+{% if job.emotion_counts %}
+// Emotion Distribution Chart
+const emotionCtx = document.getElementById('emotionChart').getContext('2d');
+const emotionData = {{ job.emotion_counts|tojson|safe }};
+new Chart(emotionCtx, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(emotionData),
+        datasets: [{
+            label: 'Count',
+            data: Object.values(emotionData),
+            backgroundColor: [
+                '#fbbf24', '#dc2626', '#7c3aed', '#3b82f6',
+                '#f97316', '#84cc16', '#64748b'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endif %}
+{% endblock %}

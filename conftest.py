@@ -1,5 +1,4 @@
 # test_assert_examples.py
-
 from pyclbr import Function
 import secrets
 

@@ -38,8 +38,7 @@ if __name__ == "__main__" :
     print("\nthe first sentence has the following results :")
     sentenceAnalysis = ("very bad i'm unhappy with the product\n")
     ScoresofSentiment(sentenceAnalysis)
-
+    
     print("\nthe second sentence has the following results :")
-    sentence = ("I love and enjoy this product\n")
-    # function calling
+    sentenceAnalysis = ("very good I love the product\n")
     ScoresofSentiment(sentenceAnalysis)
