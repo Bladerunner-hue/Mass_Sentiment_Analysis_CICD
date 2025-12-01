@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - Sentiment Analyzer{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4">
+    <div class="text-center">
+        <h1 class="text-9xl font-bold text-gray-200">500</h1>
+        <h2 class="text-3xl font-bold text-gray-900 mt-4">Server Error</h2>
+        <p class="text-gray-600 mt-2 mb-8">Something went wrong on our end. Please try again later.</p>
+        <a href="{{ url_for('main.index') }}"
+           class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+            Go Home
+        </a>
+    </div>
+</div>
+{% endblock %}
