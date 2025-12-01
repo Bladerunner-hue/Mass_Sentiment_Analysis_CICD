@@ -209,3 +209,52 @@ class TestSentimentService:
         assert 'emotion_model' in info
         assert 'device' in info
         assert info['device'] in ['cpu', 'cuda']
+
+    def test_analyze_full_uses_cache(self, monkeypatch):
+        """Ensure analyze_full returns cached results when available."""
+
+        class DummyRedis:
+            def __init__(self):
+                self.store = {}
+
+            def get(self, key):
+                return self.store.get(key)
+
+            def setex(self, key, ttl, value):
+                self.store[key] = value
+
+        service = SentimentService(cache_enabled=True)
+        service.redis_client = DummyRedis()
+        service.cache_enabled = True
+
+        calls = {'quick': 0, 'emotion': 0}
+
+        def fake_quick(text):
+            calls['quick'] += 1
+            return {
+                'sentiment': 'positive',
+                'compound_score': 0.9,
+                'scores': {'pos': 0.9, 'neg': 0.0, 'neu': 0.1, 'compound': 0.9},
+                'processing_time_ms': 1
+            }
+
+        def fake_emotions(text):
+            calls['emotion'] += 1
+            return {
+                'primary_emotion': 'joy',
+                'confidence': 0.8,
+                'emotion_scores': {'joy': 0.8},
+                'processing_time_ms': 2
+            }
+
+        monkeypatch.setattr(service, 'analyze_quick', fake_quick)
+        monkeypatch.setattr(service, 'analyze_emotions', fake_emotions)
+
+        text = "Caching works great!"
+
+        first = service.analyze_full(text)
+        second = service.analyze_full(text)
+
+        assert first == second
+        assert calls['quick'] == 1
+        assert calls['emotion'] == 1

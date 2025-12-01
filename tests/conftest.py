@@ -18,6 +18,7 @@ def app():
     app = create_app('testing')
     app.config.update({
         'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
+        'SQLALCHEMY_ENGINE_OPTIONS': {},  # Disable pooling for SQLite
         'WTF_CSRF_ENABLED': False,
         'TESTING': True,
     })

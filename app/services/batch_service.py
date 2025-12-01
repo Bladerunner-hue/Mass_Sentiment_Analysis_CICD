@@ -7,10 +7,17 @@ text data and performing sentiment/emotion analysis on each row.
 import os
 import csv
 import io
+import gc
 from datetime import datetime
-from typing import Optional, Dict, Any, BinaryIO
+from typing import Optional, Dict, Any, BinaryIO, Iterator, Callable
 
 import pandas as pd
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
 
 from app.services.sentiment_service import SentimentService
 
@@ -34,8 +41,10 @@ class BatchService:
     def __init__(
         self,
         sentiment_service: SentimentService = None,
-        max_file_size: int = 16 * 1024 * 1024,  # 16MB
-        max_rows: int = 50000
+        max_file_size: int = 100 * 1024 * 1024,  # 100MB
+        max_rows: int = 100000,
+        chunk_size: int = 1000,
+        memory_threshold: float = 0.8
     ):
         """Initialize batch service.
 
@@ -43,10 +52,14 @@ class BatchService:
             sentiment_service: Optional SentimentService instance
             max_file_size: Maximum file size in bytes
             max_rows: Maximum rows to process
+            chunk_size: Number of rows to process per chunk
+            memory_threshold: Memory usage threshold for cleanup (0-1)
         """
         self.sentiment_service = sentiment_service or SentimentService()
         self.max_file_size = max_file_size
         self.max_rows = max_rows
+        self.chunk_size = chunk_size
+        self.memory_threshold = memory_threshold
 
     def validate_file(self, file: BinaryIO, filename: str) -> Dict[str, Any]:
         """Validate uploaded CSV file.
@@ -332,6 +345,140 @@ class BatchService:
                 'success': False,
                 'error': str(e)
             }
+
+    def _check_memory_usage(self) -> bool:
+        """Check if memory usage is above threshold.
+
+        Returns:
+            bool: True if memory usage is high
+        """
+        if not HAS_PSUTIL:
+            return False
+        memory = psutil.virtual_memory()
+        return memory.percent / 100 > self.memory_threshold
+
+    def _cleanup_memory(self):
+        """Force garbage collection and memory cleanup."""
+        gc.collect()
+
+    def process_file_streaming(self, file_path: str, output_path: str = None,
+                              include_emotions: bool = True, batch_size: int = 32,
+                              progress_callback: Callable = None) -> Dict[str, Any]:
+        """Process a large CSV file using streaming to handle memory efficiently.
+
+        Args:
+            file_path: Path to input CSV file
+            output_path: Path for output CSV
+            include_emotions: Whether to include emotion analysis
+            batch_size: Batch size for processing
+            progress_callback: Optional callback(processed, total, stats)
+
+        Returns:
+            Dict with processing results and statistics
+        """
+        try:
+            # Validate file first
+            validation = self.validate_file(file_path)
+            if not validation['valid']:
+                return {'success': False, 'error': validation['error']}
+
+            # Get text column
+            text_column = self._detect_text_column(file_path)
+            if not text_column:
+                return {'success': False, 'error': 'No text column found'}
+
+            # Count total rows for progress tracking
+            with open(file_path, 'r', encoding='utf-8') as f:
+                total_rows = sum(1 for _ in f) - 1  # Subtract header
+
+            if total_rows > self.max_rows:
+                return {
+                    'success': False,
+                    'error': f'File contains {total_rows} rows, maximum is {self.max_rows}'
+                }
+
+            # Generate output path
+            if not output_path:
+                base, ext = os.path.splitext(file_path)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                output_path = f"{base}_analyzed_{timestamp}{ext}"
+
+            # Process in chunks
+            processed_rows = 0
+            stats = {'positive': 0, 'negative': 0, 'neutral': 0, 'emotions': {}}
+
+            with open(output_path, 'w', newline='', encoding='utf-8') as outfile:
+                writer = None
+
+                # Read and process in chunks
+                for chunk_df in self._read_csv_chunks(file_path, text_column, self.chunk_size):
+                    if chunk_df.empty:
+                        continue
+
+                    # Process chunk
+                    processed_chunk = self.process_dataframe(
+                        chunk_df, text_column, include_emotions, batch_size
+                    )
+
+                    # Update stats
+                    for _, row in processed_chunk.iterrows():
+                        sentiment = row.get('Sentiment', '').lower()
+                        if sentiment in stats:
+                            stats[sentiment] += 1
+
+                        if include_emotions and 'Primary_Emotion' in row:
+                            emotion = row['Primary_Emotion']
+                            stats['emotions'][emotion] = stats['emotions'].get(emotion, 0) + 1
+
+                    # Write chunk to output
+                    if writer is None:
+                        # Write header
+                        writer = csv.DictWriter(outfile, fieldnames=processed_chunk.columns)
+                        writer.writeheader()
+
+                    for _, row in processed_chunk.iterrows():
+                        writer.writerow(row.to_dict())
+
+                    processed_rows += len(processed_chunk)
+
+                    # Progress callback
+                    if progress_callback:
+                        progress_callback(processed_rows, total_rows, stats)
+
+                    # Memory cleanup
+                    if self._check_memory_usage():
+                        self._cleanup_memory()
+
+            return {
+                'success': True,
+                'output_path': output_path,
+                'rows_processed': processed_rows,
+                'stats': stats
+            }
+
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def _read_csv_chunks(self, file_path: str, text_column: str,
+                        chunk_size: int) -> Iterator[pd.DataFrame]:
+        """Read CSV file in chunks for memory-efficient processing.
+
+        Args:
+            file_path: Path to CSV file
+            text_column: Name of text column
+            chunk_size: Size of chunks to read
+
+        Yields:
+            pd.DataFrame: Chunks of the CSV file
+        """
+        for chunk in pd.read_csv(file_path, chunksize=chunk_size, encoding='utf-8'):
+            # Ensure text column exists and clean data
+            if text_column not in chunk.columns:
+                continue
+
+            # Fill NaN values and convert to string
+            chunk[text_column] = chunk[text_column].fillna('').astype(str)
+            yield chunk
 
     def generate_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Generate a summary of analysis results.
