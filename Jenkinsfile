@@ -230,11 +230,12 @@ pipeline {
             steps {
                 sh '''
                     echo "Merging features branch to main..."
-                    git config --global user.email "jenkins@localhost"
-                    git config --global user.name "Jenkins CI"
+                    git config --global user.email "security-fr@effuziongroup.fr"
+                    git config --global user.name "Security Team"
                     git checkout main
                     git pull origin main
-                    git merge features --no-ff -m "Merge features into main [ci skip]"
+                    git fetch origin
+                    git merge origin/features --no-ff -m "Merge features into main [ci skip]"
                     git push origin main
                     echo "Successfully merged features to main"
                 '''

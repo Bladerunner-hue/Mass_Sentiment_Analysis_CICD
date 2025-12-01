@@ -186,8 +186,70 @@ def api_docs():
 
 @bp.route('/health')
 def health():
-    """Health check endpoint."""
-    return jsonify({
+    """Health check endpoint for load balancers and monitoring."""
+    import datetime
+    from app.extensions import db, cache
+
+    checks = {
         'status': 'healthy',
-        'service': 'sentiment-analyzer'
-    })
+        'timestamp': datetime.datetime.utcnow().isoformat(),
+        'service': 'sentiment-analyzer',
+        'version': '1.0.0',
+        'checks': {}
+    }
+
+    # Database check
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        checks['checks']['database'] = {'status': 'ok', 'response_time_ms': 0}
+    except Exception as e:
+        checks['checks']['database'] = {'status': 'error', 'error': str(e)}
+        checks['status'] = 'unhealthy'
+
+    # Redis/Cache check
+    try:
+        cache.set('health_check', 'ok', timeout=1)
+        result = cache.get('health_check')
+        if result == 'ok':
+            checks['checks']['cache'] = {'status': 'ok'}
+        else:
+            checks['checks']['cache'] = {
+                'status': 'error', 'error': 'Cache not working'
+            }
+            checks['status'] = 'unhealthy'
+    except Exception as e:
+        checks['checks']['cache'] = {'status': 'error', 'error': str(e)}
+        checks['status'] = 'unhealthy'
+
+    # ML Model check
+    try:
+        service = get_sentiment_service()
+        # Quick test with minimal text
+        result = service.analyze_quick("test")
+        if result and 'sentiment' in result:
+            checks['checks']['ml_model'] = {'status': 'ok'}
+        else:
+            checks['checks']['ml_model'] = {
+                'status': 'error', 'error': 'Invalid response'
+            }
+            checks['status'] = 'unhealthy'
+    except Exception as e:
+        checks['checks']['ml_model'] = {'status': 'error', 'error': str(e)}
+        checks['status'] = 'unhealthy'
+
+    # Celery check (if available)
+    try:
+        from app.extensions import celery
+        # Simple task to check if Celery is responsive
+        result = celery.control.inspect().active()
+        if result:
+            checks['checks']['celery'] = {'status': 'ok'}
+        else:
+            checks['checks']['celery'] = {
+                'status': 'warning', 'message': 'No active workers'
+            }
+    except Exception as e:
+        checks['checks']['celery'] = {'status': 'error', 'error': str(e)}
+
+    status_code = 200 if checks['status'] == 'healthy' else 503
+    return jsonify(checks), status_code
