@@ -320,6 +320,14 @@ The project includes a Jenkins pipeline (`Jenkinsfile`) that:
 - **Caching**: Redis-backed for repeated text analysis
 - **Distributed Processing**: Apache Spark for large-scale ETL operations
 
+## Custom PyTorch Model & Spark Pipeline
+
+- BiLSTM + Attention model implemented under `app/ml/` with FP16 support for GPUs (Quadro RTX 5000 friendly).
+- Optional Spark preprocessing/training helpers in `app/ml/spark` for TorchDistributor + Petastorm workflows.
+- New Flask endpoint `/analysis/custom/analyze` uses the custom model when `CUSTOM_MODEL_PATH`/`CUSTOM_TOKENIZER_PATH` are present; falls back to the transformer otherwise.
+- Optional heavy dependencies live in `requirements-ml.txt` to keep the base install lightweight.
+- Configure with `.env`: `CUSTOM_MODEL_PATH`, `CUSTOM_TOKENIZER_PATH`, `CUSTOM_MODEL_DEVICE`, `TRAINING_DB_URL`, `SPARK_MASTER`.
+
 ### Streaming Performance
 
 - **Twitter API**: Real-time tweet processing with configurable keyword filtering
