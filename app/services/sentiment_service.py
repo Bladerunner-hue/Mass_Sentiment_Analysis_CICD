@@ -147,7 +147,6 @@ class SentimentService:
                 return_all_scores=True,
                 truncation=True,
                 max_length=512,
-                cache_dir=self.cache_dir,
                 torch_dtype=torch_dtype,
                 model_kwargs=model_kwargs
             )
