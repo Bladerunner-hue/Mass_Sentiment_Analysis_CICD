@@ -4,6 +4,8 @@ This module provides sentiment and emotion analysis using VADER for quick
 sentiment scoring and Hugging Face transformers for emotion detection.
 """
 
+import hashlib
+import json
 import os
 import re
 import time
@@ -45,8 +47,15 @@ class SentimentService:
     POSITIVE_THRESHOLD = 0.05
     NEGATIVE_THRESHOLD = -0.05
 
+    # Precompiled regex patterns for faster preprocessing
+    URL_PATTERN = re.compile(r'http\S+|www\.\S+')
+    HTML_PATTERN = re.compile(r'<[^>]+>')
+    WHITESPACE_PATTERN = re.compile(r'\s+')
+
     def __init__(self, model_name: str = None, cache_dir: str = None,
-                 max_workers: int = 4, memory_threshold: float = 0.8):
+                 max_workers: int = 4, memory_threshold: float = 0.8,
+                 cache_enabled: bool = True, cache_ttl: int = 86400,
+                 redis_url: Optional[str] = None):
         """Initialize the sentiment service.
 
         Args:
@@ -73,6 +82,12 @@ class SentimentService:
         self.memory_threshold = memory_threshold
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
 
+        # Caching configuration
+        self.cache_enabled = cache_enabled
+        self.cache_ttl = cache_ttl
+        self.redis_client = None
+        self._init_cache(redis_url)
+
     def _get_device(self) -> int:
         """Get the device for model inference.
 
@@ -98,6 +113,28 @@ class SentimentService:
                 return
 
             from transformers import pipeline
+            torch_dtype = None
+            model_kwargs = {}
+
+            try:
+                import torch
+
+                # Prefer reduced precision on GPU for throughput
+                if self._get_device() == 0:
+                    torch_dtype = torch.float16
+
+                    # Enable 8-bit loading when bitsandbytes is available
+                    if os.getenv('ENABLE_INT8', '1') != '0':
+                        try:
+                            import bitsandbytes  # noqa: F401
+                            model_kwargs['load_in_8bit'] = True
+                        except Exception:
+                            # Fall back silently if bitsandbytes is not present
+                            pass
+                else:
+                    torch_dtype = torch.float32
+            except ImportError:
+                torch_dtype = None
 
             # Set cache directory for model downloads
             os.environ['TRANSFORMERS_CACHE'] = self.cache_dir
@@ -110,7 +147,9 @@ class SentimentService:
                 return_all_scores=True,
                 truncation=True,
                 max_length=512,
-                cache_dir=self.cache_dir
+                cache_dir=self.cache_dir,
+                torch_dtype=torch_dtype,
+                model_kwargs=model_kwargs
             )
 
     @property
@@ -123,6 +162,81 @@ class SentimentService:
         if self._emotion_pipeline is None:
             self._load_emotion_model()
         return self._emotion_pipeline
+
+    def _calculate_optimal_batch_size(self, num_texts: int, requested_batch_size: int) -> int:
+        """Adjust batch size based on device availability and free memory."""
+        requested = max(1, requested_batch_size)
+        target = min(requested, max(1, num_texts))
+
+        try:
+            import torch
+
+            if self._get_device() != 0 or not torch.cuda.is_available():
+                return target
+
+            properties = torch.cuda.get_device_properties(0)
+            total_mem = getattr(properties, 'total_memory', 0)
+            used_mem = torch.cuda.memory_allocated(0)
+            free_mem = max(0, total_mem - used_mem)
+
+            if free_mem > 8e9:
+                return min(64, target, num_texts)
+            if free_mem > 4e9:
+                return min(32, target, num_texts)
+            return min(16, target, num_texts)
+        except Exception:
+            # If torch is unavailable or any check fails, use the requested value
+            return target
+
+    def _init_cache(self, redis_url: Optional[str]) -> None:
+        """Initialize Redis client if caching is enabled."""
+        if not self.cache_enabled:
+            return
+
+        try:
+            from redis import Redis  # Local import to avoid hard dependency at import time
+
+            url = redis_url or os.getenv('REDIS_URL')
+            if url:
+                self.redis_client = Redis.from_url(url, decode_responses=True)
+            else:
+                self.redis_client = Redis(
+                    host=os.getenv('REDIS_HOST', 'localhost'),
+                    port=int(os.getenv('REDIS_PORT', 6379)),
+                    db=int(os.getenv('REDIS_DB', 0)),
+                    decode_responses=True
+                )
+        except Exception:
+            self.cache_enabled = False
+            self.redis_client = None
+
+    def _get_cache_key(self, text: str, analysis_type: str) -> str:
+        """Generate a stable cache key for a text/analysis combination."""
+        text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
+        return f"sentiment:{analysis_type}:{text_hash}"
+
+    def _get_cached_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """Fetch a cached result if available."""
+        if not self.cache_enabled or not self.redis_client:
+            return None
+
+        try:
+            cached = self.redis_client.get(cache_key)
+            if cached:
+                return json.loads(cached)
+        except Exception:
+            self.cache_enabled = False
+        return None
+
+    def _set_cached_result(self, cache_key: str, value: Dict[str, Any]) -> None:
+        """Store a result in cache."""
+        if not self.cache_enabled or not self.redis_client:
+            return
+
+        try:
+            self.redis_client.setex(cache_key, self.cache_ttl, json.dumps(value))
+        except Exception:
+            self.cache_enabled = False
 
     def _preprocess_text(self, text: str) -> str:
         """Preprocess text for analysis.
@@ -140,13 +254,13 @@ class SentimentService:
         text = str(text)
 
         # Remove URLs
-        text = re.sub(r'http\S+|www\.\S+', '', text)
+        text = self.URL_PATTERN.sub('', text)
 
         # Remove HTML tags
-        text = re.sub(r'<[^>]+>', '', text)
+        text = self.HTML_PATTERN.sub('', text)
 
         # Normalize whitespace
-        text = ' '.join(text.split())
+        text = self.WHITESPACE_PATTERN.sub(' ', text)
 
         # Limit length to prevent memory issues
         max_length = 5000
@@ -231,6 +345,13 @@ class SentimentService:
         start_time = time.time()
 
         cleaned_text = self._preprocess_text(text)
+        cache_key = None
+
+        if self.cache_enabled and cleaned_text:
+            cache_key = self._get_cache_key(cleaned_text, 'emotions')
+            cached_result = self._get_cached_result(cache_key)
+            if cached_result is not None:
+                return cached_result
 
         if not cleaned_text:
             default_scores = {e: 0.0 for e in self.EMOTIONS}
@@ -251,12 +372,17 @@ class SentimentService:
 
         processing_time = int((time.time() - start_time) * 1000)
 
-        return {
+        result = {
             'primary_emotion': primary['label'],
             'confidence': primary['score'],
             'emotion_scores': emotion_scores,
             'processing_time_ms': processing_time
         }
+
+        if cache_key:
+            self._set_cached_result(cache_key, result)
+
+        return result
 
     def analyze_full(self, text: str) -> Dict[str, Any]:
         """Perform full analysis with both sentiment and emotions.
@@ -273,6 +399,13 @@ class SentimentService:
         start_time = time.time()
 
         cleaned_text = self._preprocess_text(text)
+        cache_key = None
+
+        if self.cache_enabled and cleaned_text:
+            cache_key = self._get_cache_key(cleaned_text, 'full')
+            cached_result = self._get_cached_result(cache_key)
+            if cached_result is not None:
+                return cached_result
 
         # Get VADER sentiment
         quick_result = self.analyze_quick(cleaned_text)
@@ -282,7 +415,7 @@ class SentimentService:
 
         total_time = int((time.time() - start_time) * 1000)
 
-        return {
+        result = {
             'text': cleaned_text[:200] + '...' if len(cleaned_text) > 200 else cleaned_text,
             'sentiment': quick_result['sentiment'],
             'compound_score': quick_result['compound_score'],
@@ -292,6 +425,11 @@ class SentimentService:
             'emotion_scores': emotion_result['emotion_scores'],
             'processing_time_ms': total_time
         }
+
+        if cache_key:
+            self._set_cached_result(cache_key, result)
+
+        return result
 
     def batch_analyze(
         self,
@@ -346,16 +484,19 @@ class SentimentService:
             # Filter out empty texts but track indices
             non_empty_indices = [i for i, t in enumerate(cleaned_texts) if t]
             non_empty_texts = [cleaned_texts[i] for i in non_empty_indices]
+            effective_batch_size = self._calculate_optimal_batch_size(
+                len(non_empty_texts), batch_size
+            )
 
             # Process in batches
             batch_predictions = []
-            for i in range(0, len(non_empty_texts), batch_size):
-                batch = non_empty_texts[i:i + batch_size]
+            for i in range(0, len(non_empty_texts), effective_batch_size):
+                batch = non_empty_texts[i:i + effective_batch_size]
                 batch_results = self.emotion_pipeline(batch)
                 batch_predictions.extend(batch_results)
 
                 if progress_callback:
-                    processed = min(i + batch_size, len(non_empty_texts))
+                    processed = min(i + effective_batch_size, len(non_empty_texts))
                     progress_callback(processed, total)
 
             # Map results back to original indices
@@ -492,7 +633,11 @@ class SentimentService:
         Returns:
             List of results for this chunk
         """
-        return self.batch_analyze(texts, include_emotions, batch_size)
+        return self.batch_analyze(
+            texts,
+            batch_size=batch_size,
+            include_emotions=include_emotions
+        )
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about loaded models.

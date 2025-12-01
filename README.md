@@ -14,6 +14,11 @@ This project implements a comprehensive Data Engineering Pipeline for Mass Feeli
 - **Monitoring**: Real-time dashboards with Grafana and alerting via Prometheus.
 - **Scalability**: Designed for high-volume data processing with Kubernetes orchestration.
 
+## Performance Optimizations
+
+- Redis-backed caching for emotion/full analyses. Provide `REDIS_URL` (or `REDIS_HOST`/`REDIS_PORT`) to reuse results for repeated texts; the service falls back gracefully if Redis is unavailable.
+- Dynamic batch sizing for transformer inference and optional 8-bit loading (requires `bitsandbytes`) to accelerate GPU throughput. Set `ENABLE_INT8=0` to skip 8-bit loading.
+
 ## Prerequisites
 
 - Python 3.8+
