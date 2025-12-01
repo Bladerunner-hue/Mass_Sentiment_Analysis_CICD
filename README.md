@@ -338,6 +338,13 @@ The project includes a Jenkins pipeline (`Jenkinsfile`) that:
 
 Outputs land in `data/raw/hf/` or `data/raw/kaggle/` and are ready for Spark preprocessing or direct PyTorch training.
 
+## Unified Data Pipeline (Static + Streaming)
+
+- Merge all static Parquet drops into train/val/test with `scripts/load_datasets.py` (reads `data/raw/{hf,kaggle,static_datasets}` and writes `data/processed/` plus metadata).
+- Optional Spark cleaning/dedup: `spark-submit app/ml/spark/data_processor.py --raw data/raw --processed data/processed`.
+- Twitter streaming collector: `python -m app.streaming.twitter_collector --keywords "climate change,renewable energy"` (writes partitioned Parquet to `data/raw/twitter_stream/date=*/hour=*/`).
+- Monitor counts across sources: `python scripts/monitor_collection.py`.
+
 ### Streaming Performance
 
 - **Twitter API**: Real-time tweet processing with configurable keyword filtering
