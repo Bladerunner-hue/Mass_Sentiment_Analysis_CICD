@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block title %}X/Twitter Data Collection - Sentiment Analyzer{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{{ url_for('datasets.index') }}" class="text-blue-600 hover:text-blue-800 mb-2 inline-block">
+            ← Back to Dataset Manager
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900">𝕏 Twitter / X Data Collection</h1>
+        <p class="mt-2 text-gray-600">Collect tweets in real-time for sentiment analysis</p>
+    </div>
+
+    {% if not is_configured %}
+    <!-- API Not Configured Warning -->
+    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6 mb-8 rounded-lg">
+        <div class="flex items-start">
+            <svg class="w-6 h-6 text-yellow-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <h3 class="text-lg font-semibold text-yellow-800">X API Not Configured</h3>
+                <p class="text-yellow-700 mt-1">To use this feature, you need to set up your X (Twitter) API credentials.</p>
+                <div class="mt-4 bg-yellow-100 p-4 rounded-lg">
+                    <h4 class="font-medium text-yellow-800 mb-2">Setup Instructions:</h4>
+                    <ol class="list-decimal list-inside text-yellow-700 space-y-2">
+                        <li>Go to <a href="https://developer.twitter.com/en/portal/dashboard" target="_blank" class="text-blue-600 hover:underline">X Developer Portal</a></li>
+                        <li>Create a new project and app</li>
+                        <li>Generate a Bearer Token</li>
+                        <li>Set the environment variable: <code class="bg-yellow-200 px-2 py-1 rounded">X_BEARER_TOKEN=your_token_here</code></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Search Interface -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left Column: Search Controls -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow p-6 sticky top-4">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">🔍 Search Tweets</h2>
+                
+                <form id="search-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Search Query</label>
+                        <input type="text" id="search-query" placeholder="e.g., #AI, @elonmusk, Tesla"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">Supports Twitter search operators</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Max Results</label>
+                        <select id="max-results" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="10">10 tweets</option>
+                            <option value="50">50 tweets</option>
+                            <option value="100" selected>100 tweets</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Languages</label>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" value="en" checked class="lang-checkbox rounded border-gray-300">
+                                <span class="ml-2 text-sm">🇬🇧 English</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" value="es" class="lang-checkbox rounded border-gray-300">
+                                <span class="ml-2 text-sm">🇪🇸 Spanish</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" value="fr" class="lang-checkbox rounded border-gray-300">
+                                <span class="ml-2 text-sm">🇫🇷 French</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" value="de" class="lang-checkbox rounded border-gray-300">
+                                <span class="ml-2 text-sm">🇩🇪 German</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 font-medium">
+                        🔍 Search Tweets
+                    </button>
+                </form>
+                
+                <hr class="my-6">
+                
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">📊 Collect for Analysis</h3>
+                
+                <form id="collect-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Topic/Keyword</label>
+                        <input type="text" id="collect-query" placeholder="e.g., climate change"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Target Count</label>
+                        <select id="target-count" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <option value="100">100 tweets</option>
+                            <option value="500">500 tweets</option>
+                            <option value="1000" selected>1,000 tweets</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+                        📥 Collect Dataset
+                    </button>
+                </form>
+                
+                <hr class="my-6">
+                
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">👤 User Timeline</h3>
+                
+                <form id="user-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-gray-400">@</span>
+                            <input type="text" id="username" placeholder="elonmusk"
+                                   class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium">
+                        👤 Get User Tweets
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Right Column: Results -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-xl font-semibold text-gray-900">📱 Results</h2>
+                    <div class="flex items-center space-x-4">
+                        <span id="results-count" class="text-sm text-gray-500"></span>
+                        <button id="analyze-btn" onclick="analyzeResults()" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm hidden">
+                            🔬 Analyze Sentiment
+                        </button>
+                        <button id="export-btn" onclick="exportResults()" 
+                                class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm hidden">
+                            📤 Export CSV
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="results-container" class="divide-y divide-gray-200 max-h-[70vh] overflow-auto">
+                    <div class="p-12 text-center text-gray-500">
+                        <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                        <p class="text-lg">Search for tweets to get started</p>
+                        <p class="text-sm mt-2">Results will appear here</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sentiment Analysis Results -->
+            <div id="sentiment-results" class="bg-white rounded-lg shadow mt-6 hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-900">🎭 Sentiment Analysis</h2>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-green-50 rounded-lg p-4 text-center">
+                            <div class="text-3xl font-bold text-green-600" id="positive-count">0</div>
+                            <div class="text-sm text-green-700">Positive</div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-4 text-center">
+                            <div class="text-3xl font-bold text-gray-600" id="neutral-count">0</div>
+                            <div class="text-sm text-gray-700">Neutral</div>
+                        </div>
+                        <div class="bg-red-50 rounded-lg p-4 text-center">
+                            <div class="text-3xl font-bold text-red-600" id="negative-count">0</div>
+                            <div class="text-sm text-red-700">Negative</div>
+                        </div>
+                    </div>
+                    <canvas id="sentiment-chart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Loading Toast -->
+<div id="loading-toast" class="fixed bottom-4 right-4 hidden">
+    <div class="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-4">
+        <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span id="loading-message">Loading...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentTweets = [];
+
+// Search tweets
+document.getElementById('search-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const query = document.getElementById('search-query').value;
+    const maxResults = document.getElementById('max-results').value;
+    
+    if (!query) {
+        alert('Please enter a search query');
+        return;
+    }
+    
+    showLoading('Searching tweets...');
+    
+    try {
+        const response = await fetch('/datasets/api/twitter/search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query, max_results: parseInt(maxResults)})
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.error) {
+            alert(`Error: ${result.error}`);
+            return;
+        }
+        
+        currentTweets = result.tweets || [];
+        renderTweets(currentTweets);
+    } catch (err) {
+        hideLoading();
+        alert(`Error: ${err.message}`);
+    }
+});
+
+// Collect for analysis
+document.getElementById('collect-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const query = document.getElementById('collect-query').value;
+    const targetCount = document.getElementById('target-count').value;
+    const languages = Array.from(document.querySelectorAll('.lang-checkbox:checked')).map(cb => cb.value);
+    
+    if (!query) {
+        alert('Please enter a topic/keyword');
+        return;
+    }
+    
+    showLoading(`Collecting ${targetCount} tweets...`);
+    
+    try {
+        const response = await fetch('/datasets/api/twitter/collect', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                query,
+                target_count: parseInt(targetCount),
+                languages
+            })
+        });
+        
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.error) {
+            alert(`Error: ${result.error}`);
+            return;
+        }
+        
+        currentTweets = result.tweets || [];
+        renderTweets(currentTweets);
+        
+        alert(`✅ Collected ${result.total_collected} tweets for "${query}"`);
+    } catch (err) {
+        hideLoading();
+        alert(`Error: ${err.message}`);
+    }
+});
+
+// Get user tweets
+document.getElementById('user-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value.replace('@', '');
+    
+    if (!username) {
+        alert('Please enter a username');
+        return;
+    }
+    
+    showLoading(`Getting tweets from @${username}...`);
+    
+    try {
+        const response = await fetch(`/datasets/api/twitter/user/${username}`);
+        const result = await response.json();
+        hideLoading();
+        
+        if (result.error) {
+            alert(`Error: ${result.error}`);
+            return;
+        }
+        
+        currentTweets = result.tweets || [];
+        renderTweets(currentTweets, result.user);
+    } catch (err) {
+        hideLoading();
+        alert(`Error: ${err.message}`);
+    }
+});
+
+// Render tweets
+function renderTweets(tweets, user = null) {
+    const container = document.getElementById('results-container');
+    
+    if (tweets.length === 0) {
+        container.innerHTML = `
+            <div class="p-12 text-center text-gray-500">
+                <p class="text-lg">No tweets found</p>
+            </div>
+        `;
+        document.getElementById('results-count').textContent = '0 tweets';
+        document.getElementById('analyze-btn').classList.add('hidden');
+        document.getElementById('export-btn').classList.add('hidden');
+        return;
+    }
+    
+    document.getElementById('results-count').textContent = `${tweets.length} tweets`;
+    document.getElementById('analyze-btn').classList.remove('hidden');
+    document.getElementById('export-btn').classList.remove('hidden');
+    
+    let html = '';
+    
+    if (user) {
+        html += `
+            <div class="p-4 bg-purple-50">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
+                        <span class="text-xl">👤</span>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-gray-900">${user.name || user.username}</div>
+                        <div class="text-sm text-gray-500">@${user.username}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    tweets.forEach(tweet => {
+        const date = tweet.created_at ? new Date(tweet.created_at).toLocaleDateString() : '';
+        const metrics = tweet.metrics || {};
+        
+        html += `
+            <div class="p-4 hover:bg-gray-50">
+                <div class="flex items-start space-x-3">
+                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-lg">𝕏</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        ${tweet.author ? `
+                            <div class="flex items-center space-x-2 mb-1">
+                                <span class="font-semibold text-gray-900">${tweet.author.name || ''}</span>
+                                <span class="text-gray-500 text-sm">@${tweet.author.username || tweet.username || ''}</span>
+                                ${tweet.author.verified ? '<span class="text-blue-500">✓</span>' : ''}
+                                <span class="text-gray-400 text-sm">· ${date}</span>
+                            </div>
+                        ` : `
+                            <div class="text-gray-400 text-sm mb-1">${date}</div>
+                        `}
+                        <p class="text-gray-800 whitespace-pre-wrap">${tweet.text}</p>
+                        <div class="flex items-center space-x-6 mt-2 text-sm text-gray-500">
+                            <span>💬 ${metrics.reply_count || 0}</span>
+                            <span>🔁 ${tweet.retweets || metrics.retweet_count || 0}</span>
+                            <span>❤️ ${tweet.likes || metrics.like_count || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Analyze sentiment
+async function analyzeResults() {
+    if (currentTweets.length === 0) return;
+    
+    showLoading('Analyzing sentiment...');
+    
+    try {
+        // Send tweets for analysis
+        const response = await fetch('/api/v1/analyze/batch', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                texts: currentTweets.map(t => t.text)
+            })
+        });
+        
+        const results = await response.json();
+        hideLoading();
+        
+        if (results.error) {
+            alert(`Error: ${results.error}`);
+            return;
+        }
+        
+        // Count sentiments
+        const counts = {positive: 0, neutral: 0, negative: 0};
+        (results.results || results).forEach(r => {
+            const sentiment = r.sentiment?.toLowerCase() || 'neutral';
+            if (counts[sentiment] !== undefined) counts[sentiment]++;
+        });
+        
+        // Update UI
+        document.getElementById('positive-count').textContent = counts.positive;
+        document.getElementById('neutral-count').textContent = counts.neutral;
+        document.getElementById('negative-count').textContent = counts.negative;
+        
+        document.getElementById('sentiment-results').classList.remove('hidden');
+        
+        // Draw chart
+        const ctx = document.getElementById('sentiment-chart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                datasets: [{
+                    data: [counts.positive, counts.neutral, counts.negative],
+                    backgroundColor: ['#22c55e', '#9ca3af', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {position: 'bottom'}
+                }
+            }
+        });
+    } catch (err) {
+        hideLoading();
+        alert(`Error: ${err.message}`);
+    }
+}
+
+// Export to CSV
+function exportResults() {
+    if (currentTweets.length === 0) return;
+    
+    const csv = [
+        ['id', 'text', 'username', 'created_at', 'retweets', 'likes'].join(','),
+        ...currentTweets.map(t => [
+            t.id,
+            `"${(t.text || '').replace(/"/g, '""')}"`,
+            t.author?.username || t.username || '',
+            t.created_at || '',
+            t.retweets || t.metrics?.retweet_count || 0,
+            t.likes || t.metrics?.like_count || 0
+        ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tweets_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Helpers
+function showLoading(message) {
+    document.getElementById('loading-message').textContent = message;
+    document.getElementById('loading-toast').classList.remove('hidden');
+}
+
+function hideLoading() {
+    document.getElementById('loading-toast').classList.add('hidden');
+}
+</script>
+{% endblock %}
