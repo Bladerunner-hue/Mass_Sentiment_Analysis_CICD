@@ -328,6 +328,16 @@ The project includes a Jenkins pipeline (`Jenkinsfile`) that:
 - Optional heavy dependencies live in `requirements-ml.txt` to keep the base install lightweight.
 - Configure with `.env`: `CUSTOM_MODEL_PATH`, `CUSTOM_TOKENIZER_PATH`, `CUSTOM_MODEL_DEVICE`, `TRAINING_DB_URL`, `SPARK_MASTER`.
 
+## Dataset Export Helpers (Hugging Face + Kaggle)
+
+- Export a Hugging Face dataset to Parquet:  
+  `python scripts/export_hf_dataset.py --dataset carblacac/twitter-sentiment-analysis --split train --text-field text --sentiment-field sentiment --default-emotion neutral`
+
+- Export a Kaggle dataset to Parquet (requires `~/.kaggle/kaggle.json`):  
+  `python scripts/export_kaggle_dataset.py --dataset kazanova/sentiment140 --text-field text --sentiment-field sentiment --encoding latin-1`
+
+Outputs land in `data/raw/hf/` or `data/raw/kaggle/` and are ready for Spark preprocessing or direct PyTorch training.
+
 ### Streaming Performance
 
 - **Twitter API**: Real-time tweet processing with configurable keyword filtering
