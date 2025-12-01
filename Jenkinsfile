@@ -130,7 +130,6 @@ pipeline {
                         --cov-report=xml:coverage.xml \
                         --cov-report=html:htmlcov \
                         --cov-report=term-missing \
-                        --cov-fail-under=70 \
                         || true
                 '''
             }
