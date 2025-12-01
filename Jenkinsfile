@@ -29,12 +29,27 @@ pipeline {
                 sh '''
                     echo "Setting up Python environment..."
 
-                    # Use system python3 (available in Jenkins environment)
-                    PYTHON_CMD="python3"
-                    echo "Using system python3"
+                    # Try to use pyenv python3 if available, otherwise system python3
+                    if command -v pyenv &> /dev/null && pyenv versions | grep -q "3.11.11"; then
+                        echo "Found pyenv 3.11.11"
+                        export PATH="$HOME/.pyenv/bin:$PATH"
+                        pyenv shell 3.11.11
+                        PYTHON_CMD="python"
+                    else
+                        echo "Using system python3"
+                        PYTHON_CMD="python3"
+                    fi
 
                     echo "Setting up Python virtual environment..."
-                    $PYTHON_CMD -m venv ${VENV_PATH}
+                    $PYTHON_CMD -m venv ${VENV_PATH} || (
+                        echo "venv creation failed, trying manual pip installation..."
+                        $PYTHON_CMD -m ensurepip --upgrade || (
+                            echo "ensurepip failed, installing pip manually..."
+                            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+                            $PYTHON_CMD get-pip.py
+                        )
+                        $PYTHON_CMD -m venv ${VENV_PATH}
+                    )
                     . ${VENV_PATH}/bin/activate
                     pip install --upgrade pip wheel setuptools
                     pip install -r requirements.txt
