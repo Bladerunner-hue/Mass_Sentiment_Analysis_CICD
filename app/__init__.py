@@ -66,6 +66,23 @@ def _init_extensions(app):
         db, migrate, login_manager, jwt, cache, limiter, csrf, celery_init_app
     )
 
+    # Initialize CORS
+    from flask_cors import CORS
+    if app.config.get('ENV') == 'production':
+        allowed_origins = os.environ.get('ALLOWED_ORIGINS', '').split(',') \
+            if os.environ.get('ALLOWED_ORIGINS') \
+            else ['http://localhost:3000', 'http://localhost:5000']
+        CORS(app, resources={
+            r"/api/*": {
+                "origins": allowed_origins,
+                "methods": ["GET", "POST", "PUT", "DELETE"],
+                "allow_headers": ["Content-Type", "Authorization"],
+                "max_age": 3600
+            }
+        })
+    else:
+        CORS(app)  # Allow all in development
+
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
