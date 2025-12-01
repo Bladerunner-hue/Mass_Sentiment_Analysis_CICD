@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+
+{% block title %}Browse Datasets - Sentiment Analyzer{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <a href="{{ url_for('datasets.index') }}" class="text-blue-600 hover:text-blue-800 mb-2 inline-block">
+                ← Back to Dataset Manager
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">
+                {% if source == 'kaggle' %}🔷 Browse Kaggle{% else %}🤗 Browse HuggingFace{% endif %}
+            </h1>
+        </div>
+        
+        <!-- Source Toggle -->
+        <div class="flex bg-gray-200 rounded-lg p-1">
+            <a href="{{ url_for('datasets.browse', source='huggingface', q=query) }}" 
+               class="px-4 py-2 rounded-md text-sm font-medium transition {{ 'bg-white shadow text-gray-900' if source == 'huggingface' else 'text-gray-600 hover:text-gray-900' }}">
+                🤗 HuggingFace
+            </a>
+            <a href="{{ url_for('datasets.browse', source='kaggle', q=query) }}" 
+               class="px-4 py-2 rounded-md text-sm font-medium transition {{ 'bg-white shadow text-gray-900' if source == 'kaggle' else 'text-gray-600 hover:text-gray-900' }}">
+                🔷 Kaggle
+            </a>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="bg-white rounded-lg shadow mb-8 p-6">
+        <form id="search-form" class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Search Query</label>
+                <input type="text" id="search-query" value="{{ query }}" 
+                       placeholder="e.g., sentiment, emotion, twitter..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            {% if source == 'huggingface' %}
+            <div class="w-48">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Task</label>
+                <select id="search-task" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Tasks</option>
+                    <option value="text-classification">Text Classification</option>
+                    <option value="sentiment-analysis">Sentiment Analysis</option>
+                    <option value="token-classification">Token Classification</option>
+                    <option value="question-answering">Question Answering</option>
+                </select>
+            </div>
+            {% endif %}
+            
+            <div class="w-36">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                <select id="search-sort" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="downloads">Downloads</option>
+                    <option value="likes">Likes</option>
+                    {% if source == 'kaggle' %}
+                    <option value="hottest">Hottest</option>
+                    <option value="votes">Votes</option>
+                    {% else %}
+                    <option value="created_at">Newest</option>
+                    {% endif %}
+                </select>
+            </div>
+            
+            <div class="flex items-end">
+                <button type="submit" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                    🔍 Search
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Popular Categories -->
+    <div class="mb-8">
+        <h3 class="text-lg font-semibold text-gray-700 mb-3">🏷️ Popular Categories</h3>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="searchByTag('sentiment')" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 text-sm">sentiment</button>
+            <button onclick="searchByTag('emotion')" class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 text-sm">emotion</button>
+            <button onclick="searchByTag('twitter')" class="px-3 py-1 bg-sky-100 text-sky-700 rounded-full hover:bg-sky-200 text-sm">twitter</button>
+            <button onclick="searchByTag('nlp')" class="px-3 py-1 bg-green-100 text-green-700 rounded-full hover:bg-green-200 text-sm">nlp</button>
+            <button onclick="searchByTag('text classification')" class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 text-sm">text classification</button>
+            <button onclick="searchByTag('hate speech')" class="px-3 py-1 bg-red-100 text-red-700 rounded-full hover:bg-red-200 text-sm">hate speech</button>
+            <button onclick="searchByTag('reviews')" class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 text-sm">reviews</button>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-container" class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-900">Search Results</h2>
+            <span id="results-count" class="text-sm text-gray-500"></span>
+        </div>
+        
+        <div id="results-list" class="divide-y divide-gray-200">
+            <div class="p-12 text-center text-gray-500">
+                Enter a search query to find datasets
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dataset Info Modal -->
+<div id="info-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-lg font-semibold" id="info-title">Dataset Details</h3>
+                <button onclick="closeInfoModal()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-auto max-h-[60vh]" id="info-content">
+                <div class="animate-pulse">Loading...</div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+                <button onclick="closeInfoModal()" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">
+                    Cancel
+                </button>
+                <button id="download-btn" onclick="downloadCurrentDataset()" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    📥 Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Download Progress Toast -->
+<div id="download-toast" class="fixed bottom-4 right-4 hidden">
+    <div class="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-4">
+        <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span id="download-toast-message">Downloading...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const source = '{{ source }}';
+let currentDataset = null;
+
+// Search form submission
+document.getElementById('search-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await performSearch();
+});
+
+// Initial search if query provided
+{% if query %}
+document.addEventListener('DOMContentLoaded', () => performSearch());
+{% endif %}
+
+// Search by tag
+function searchByTag(tag) {
+    document.getElementById('search-query').value = tag;
+    performSearch();
+}
+
+// Perform search
+async function performSearch() {
+    const query = document.getElementById('search-query').value;
+    const sort = document.getElementById('search-sort').value;
+    const task = document.getElementById('search-task')?.value || '';
+    
+    document.getElementById('results-list').innerHTML = `
+        <div class="p-12 text-center">
+            <svg class="animate-spin h-8 w-8 mx-auto text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-gray-500">Searching...</p>
+        </div>
+    `;
+    
+    try {
+        let url;
+        if (source === 'kaggle') {
+            url = `/datasets/api/kaggle/search?q=${encodeURIComponent(query)}&sort=${sort}`;
+        } else {
+            url = `/datasets/api/hf/search?q=${encodeURIComponent(query)}&sort=${sort}${task ? '&task=' + task : ''}`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.datasets && data.datasets.length > 0) {
+            if (data.datasets[0].error) {
+                throw new Error(data.datasets[0].error);
+            }
+            renderResults(data.datasets);
+        } else {
+            document.getElementById('results-list').innerHTML = `
+                <div class="p-12 text-center text-gray-500">
+                    <p class="text-lg">No datasets found</p>
+                    <p class="text-sm mt-2">Try a different search query</p>
+                </div>
+            `;
+            document.getElementById('results-count').textContent = '0 results';
+        }
+    } catch (err) {
+        document.getElementById('results-list').innerHTML = `
+            <div class="p-12 text-center text-red-600">
+                <p class="text-lg">Error: ${err.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Render search results
+function renderResults(datasets) {
+    document.getElementById('results-count').textContent = `${datasets.length} results`;
+    
+    let html = '';
+    datasets.forEach(ds => {
+        const icon = source === 'kaggle' ? '🔷' : '🤗';
+        const downloads = ds.downloads?.toLocaleString() || '0';
+        const likes = (ds.likes || ds.votes || 0).toLocaleString();
+        
+        html += `
+            <div class="p-6 hover:bg-gray-50 transition cursor-pointer" onclick="showDatasetInfo('${ds.id}')">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xl">${icon}</span>
+                            <h3 class="text-lg font-semibold text-gray-900">${ds.name || ds.id}</h3>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">${ds.author || ''}</p>
+                        <div class="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                            <span>📥 ${downloads} downloads</span>
+                            <span>❤️ ${likes} likes</span>
+                            ${ds.size ? `<span>📦 ${ds.size}</span>` : ''}
+                        </div>
+                        ${ds.tags && ds.tags.length > 0 ? `
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                ${ds.tags.slice(0, 5).map(tag => `<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">${tag}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <a href="${ds.url}" target="_blank" onclick="event.stopPropagation()" 
+                       class="text-blue-600 hover:text-blue-800 text-sm">
+                        View on ${source === 'kaggle' ? 'Kaggle' : 'HuggingFace'} ↗
+                    </a>
+                </div>
+            </div>
+        `;
+    });
+    
+    document.getElementById('results-list').innerHTML = html;
+}
+
+// Show dataset info modal
+async function showDatasetInfo(datasetId) {
+    currentDataset = datasetId;
+    document.getElementById('info-modal').classList.remove('hidden');
+    document.getElementById('info-title').textContent = datasetId;
+    document.getElementById('info-content').innerHTML = '<div class="animate-pulse text-center py-8">Loading details...</div>';
+    
+    try {
+        const endpoint = source === 'kaggle' 
+            ? `/datasets/api/kaggle/info/${datasetId}`
+            : `/datasets/api/hf/info/${datasetId}`;
+        
+        const response = await fetch(endpoint);
+        const info = await response.json();
+        
+        if (info.error) {
+            document.getElementById('info-content').innerHTML = `<div class="text-red-600">Error: ${info.error}</div>`;
+            return;
+        }
+        
+        let html = `
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-semibold text-gray-700">ID</h4>
+                    <p class="text-gray-900 font-mono">${info.id}</p>
+                </div>
+                ${info.title ? `<div><h4 class="font-semibold text-gray-700">Title</h4><p class="text-gray-900">${info.title}</p></div>` : ''}
+                ${info.downloads ? `<div><h4 class="font-semibold text-gray-700">Downloads</h4><p class="text-gray-900">${info.downloads.toLocaleString()}</p></div>` : ''}
+                ${info.description ? `<div><h4 class="font-semibold text-gray-700">Description</h4><p class="text-gray-600 text-sm whitespace-pre-wrap">${info.description}</p></div>` : ''}
+                ${info.tags && info.tags.length > 0 ? `
+                    <div>
+                        <h4 class="font-semibold text-gray-700 mb-2">Tags</h4>
+                        <div class="flex flex-wrap gap-1">
+                            ${info.tags.map(tag => `<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                <div>
+                    <h4 class="font-semibold text-gray-700">Link</h4>
+                    <a href="${info.url}" target="_blank" class="text-blue-600 hover:underline">${info.url}</a>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('info-content').innerHTML = html;
+    } catch (err) {
+        document.getElementById('info-content').innerHTML = `<div class="text-red-600">Error: ${err.message}</div>`;
+    }
+}
+
+// Download current dataset
+async function downloadCurrentDataset() {
+    if (!currentDataset) return;
+    
+    closeInfoModal();
+    showDownloadToast(`Downloading ${currentDataset}...`);
+    
+    try {
+        const endpoint = source === 'kaggle'
+            ? '/datasets/api/kaggle/download'
+            : '/datasets/api/hf/download';
+        
+        const body = source === 'kaggle'
+            ? {dataset_id: currentDataset}
+            : {dataset_id: currentDataset, split: 'train'};
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+        
+        const result = await response.json();
+        hideDownloadToast();
+        
+        if (result.success) {
+            const message = source === 'kaggle'
+                ? `Files: ${result.files?.length || 0}\nSize: ${result.total_size_mb?.toFixed(2) || 0} MB`
+                : `Rows: ${result.num_rows?.toLocaleString() || 0}\nPath: ${result.path}`;
+            alert(`✅ Downloaded ${currentDataset}!\n\n${message}`);
+        } else {
+            alert(`❌ Error: ${result.error}`);
+        }
+    } catch (err) {
+        hideDownloadToast();
+        alert(`❌ Error: ${err.message}`);
+    }
+}
+
+// Close info modal
+function closeInfoModal() {
+    document.getElementById('info-modal').classList.add('hidden');
+}
+
+// Toast helpers
+function showDownloadToast(message) {
+    document.getElementById('download-toast-message').textContent = message;
+    document.getElementById('download-toast').classList.remove('hidden');
+}
+
+function hideDownloadToast() {
+    document.getElementById('download-toast').classList.add('hidden');
+}
+
+// Close modal on escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeInfoModal();
+});
+</script>
+{% endblock %}
