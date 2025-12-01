@@ -1,0 +1,15 @@
+{
+  "name": "sentiment-analyzer",
+  "version": "1.0.0",
+  "description": "Tailwind CSS build for Sentiment Analyzer Flask App",
+  "scripts": {
+    "build": "npx tailwindcss -i ./app/static/src/input.css -o ./app/static/dist/output.css --minify",
+    "watch": "npx tailwindcss -i ./app/static/src/input.css -o ./app/static/dist/output.css --watch",
+    "dev": "npx tailwindcss -i ./app/static/src/input.css -o ./app/static/dist/output.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10"
+  }
+}
