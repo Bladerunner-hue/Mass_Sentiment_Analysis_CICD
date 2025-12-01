@@ -2,6 +2,7 @@
 
 This module provides sentiment and emotion analysis using VADER for quick
 sentiment scoring and Hugging Face transformers for emotion detection.
+Custom BiLSTM + Attention model support is also available.
 """
 
 import hashlib
@@ -28,16 +29,20 @@ class SentimentService:
 
     This service provides:
     - Quick VADER-based sentiment analysis (~0.3ms per text)
-    - Transformer-based emotion detection using distilroberta (~40ms per text)
+    - Custom BiLSTM + Attention model for enhanced accuracy (primary/default)
+    - Transformer-based emotion detection using distilroberta (~40ms per text) as fallback
     - Combined full analysis with both sentiment and emotions
     - Efficient batch processing with GPU acceleration
 
-    The transformer model is loaded lazily on first use to avoid startup overhead.
+    The custom BiLSTM + Attention model is used as primary when CUSTOM_MODEL_PATH
+    and CUSTOM_TOKENIZER_PATH are configured. Falls back to transformer model if
+    custom model is unavailable or fails.
 
     Attributes:
         vader: VADER sentiment analyzer instance
-        emotion_pipeline: Hugging Face pipeline for emotion detection (lazy loaded)
-        model_name: Name of the Hugging Face model to use
+        emotion_pipeline: Hugging Face pipeline for emotion detection (lazy loaded, fallback)
+        custom_service: Custom BiLSTM + Attention service (lazy loaded, primary)
+        model_name: Name of the fallback Hugging Face model to use
     """
 
     # Emotion labels from j-hartmann/emotion-english-distilroberta-base
@@ -76,6 +81,11 @@ class SentimentService:
         self._emotion_pipeline = None
         self._pipeline_lock = threading.Lock()
         self._device = None
+        self._custom_service = None
+        self._custom_lock = threading.Lock()
+
+        # Check if custom model is available
+        self._custom_model_available = self._check_custom_model_available()
 
         # Performance optimizations
         self.max_workers = max_workers
@@ -101,6 +111,43 @@ class SentimentService:
             except ImportError:
                 self._device = -1
         return self._device
+
+    def _check_custom_model_available(self) -> bool:
+        """Check if custom BiLSTM + Attention model should be used (environment variables set)."""
+        model_path = os.getenv('CUSTOM_MODEL_PATH')
+        tokenizer_path = os.getenv('CUSTOM_TOKENIZER_PATH')
+        # Custom model is considered available if environment variables are set
+        # (will attempt to load and fall back to transformer if loading fails)
+        return bool(model_path and tokenizer_path)
+
+    def _load_custom_service(self):
+        """Load the custom sentiment service (thread-safe, lazy loading)."""
+        if self._custom_service is not None:
+            return
+
+        with self._custom_lock:
+            # Double-check after acquiring lock
+            if self._custom_service is not None:
+                return
+
+            try:
+                from app.services.custom_sentiment_service import CustomSentimentService
+                self._custom_service = CustomSentimentService()
+            except Exception:
+                # If custom service fails to load, disable it
+                self._custom_model_available = False
+                self._custom_service = None
+
+    @property
+    def custom_service(self):
+        """Get the custom sentiment service (lazy loaded).
+
+        Returns:
+            CustomSentimentService: Custom BiLSTM + Attention service or None
+        """
+        if self._custom_service is None and self._custom_model_available:
+            self._load_custom_service()
+        return self._custom_service
 
     def _load_emotion_model(self):
         """Load the emotion detection model (thread-safe, lazy loading with caching)."""
@@ -326,9 +373,10 @@ class SentimentService:
         }
 
     def analyze_emotions(self, text: str) -> Dict[str, Any]:
-        """Perform transformer-based emotion detection.
+        """Perform emotion detection using custom model (primary) or transformer fallback.
 
-        Uses j-hartmann/emotion-english-distilroberta-base to detect
+        Uses custom BiLSTM + Attention model as primary when configured, otherwise falls back to
+        j-hartmann/emotion-english-distilroberta-base to detect
         7 emotions: anger, disgust, fear, joy, neutral, sadness, surprise.
 
         Args:
@@ -362,7 +410,30 @@ class SentimentService:
                 'processing_time_ms': 0
             }
 
-        # Get predictions from transformer model
+        # Use custom model as primary (always try first)
+        if self._custom_model_available:
+            try:
+                if self.custom_service:
+                    result = self.custom_service.analyze(cleaned_text)
+                    processing_time = int((time.time() - start_time) * 1000)
+
+                    # Format result to match expected interface
+                    custom_result = {
+                        'primary_emotion': result.get('primary_emotion', 'neutral'),
+                        'confidence': result.get('confidence', 0.0),
+                        'emotion_scores': result.get('emotion_scores', {}),
+                        'processing_time_ms': processing_time
+                    }
+
+                    if cache_key:
+                        self._set_cached_result(cache_key, custom_result)
+
+                    return custom_result
+            except Exception:
+                # Custom model failed, fall back to transformer
+                pass
+
+        # Fallback to transformer model
         results = self.emotion_pipeline(cleaned_text)[0]
 
         # Convert to dict and find primary emotion
@@ -386,8 +457,8 @@ class SentimentService:
     def analyze_full(self, text: str) -> Dict[str, Any]:
         """Perform full analysis with both sentiment and emotions.
 
-        Combines VADER sentiment analysis with transformer-based
-        emotion detection for comprehensive text analysis.
+        Uses custom BiLSTM + Attention model as primary for comprehensive analysis,
+        otherwise falls back to combining VADER sentiment analysis with transformer-based emotion detection.
 
         Args:
             text: Text to analyze
@@ -406,7 +477,34 @@ class SentimentService:
             if cached_result is not None:
                 return cached_result
 
-        # Get VADER sentiment
+        # Use custom model as primary (provides both sentiment and emotions)
+        if self._custom_model_available:
+            try:
+                if self.custom_service:
+                    custom_result = self.custom_service.analyze(cleaned_text)
+                    total_time = int((time.time() - start_time) * 1000)
+
+                    result = {
+                        'text': cleaned_text[:200] + '...' if len(cleaned_text) > 200 else cleaned_text,
+                        'sentiment': custom_result.get('sentiment', 'neutral'),
+                        'compound_score': custom_result.get('compound_score', 0.0),
+                        'scores': custom_result.get('scores', {}),
+                        'primary_emotion': custom_result.get('primary_emotion', 'neutral'),
+                        'confidence': custom_result.get('confidence', 0.0),
+                        'emotion_scores': custom_result.get('emotion_scores', {}),
+                        'processing_time_ms': total_time,
+                        'model_used': 'custom_bilstm_attention'
+                    }
+
+                    if cache_key:
+                        self._set_cached_result(cache_key, result)
+
+                    return result
+            except Exception:
+                # Custom model failed, fall back to VADER + transformer
+                pass
+
+        # Fallback to VADER + transformer
         quick_result = self.analyze_quick(cleaned_text)
 
         # Get transformer emotions
@@ -422,7 +520,8 @@ class SentimentService:
             'primary_emotion': emotion_result['primary_emotion'],
             'confidence': emotion_result['confidence'],
             'emotion_scores': emotion_result['emotion_scores'],
-            'processing_time_ms': total_time
+            'processing_time_ms': total_time,
+            'model_used': 'vader_transformer'
         }
 
         if cache_key:
