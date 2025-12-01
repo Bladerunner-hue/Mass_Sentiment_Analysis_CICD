@@ -11,12 +11,10 @@ from flask_jwt_extended import (
 )
 from marshmallow import ValidationError
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models.user import User
 from app.models.analysis import SentimentAnalysis
-from app.services.sentiment_service import SentimentService
-
-import re
+from app.api.schemas import TextInputSchema, BatchTextInputSchema
 
 
 def validate_text_input(text: str, max_length: int = 5000) -> dict:
@@ -194,6 +192,7 @@ class AnalyzeText(Resource):
             401: 'Authentication required'
         }
     )
+    @limiter.limit("50 per hour;200 per day")
     @jwt_required()
     def post(self):
         """Analyze sentiment and emotions of provided text.
@@ -201,17 +200,13 @@ class AnalyzeText(Resource):
         Returns detailed sentiment scores from VADER and emotion
         detection from transformer model.
         """
-        data = request.get_json()
+        schema = TextInputSchema()
+        try:
+            data = schema.load(request.get_json())
+        except ValidationError as err:
+            analysis_ns.abort(400, f'Validation error: {err.messages}')
 
-        if not data or 'text' not in data:
-            analysis_ns.abort(400, 'Text field is required')
-
-        # Validate and sanitize input
-        validation = validate_text_input(data['text'])
-        if not validation['valid']:
-            analysis_ns.abort(400, validation['error'])
-
-        text = validation['text']
+        text = data['text']
 
         # Perform analysis
         service = get_sentiment_service()
@@ -284,6 +279,7 @@ class BatchAnalyze(Resource):
             401: 'Authentication required'
         }
     )
+    @limiter.limit("10 per hour;50 per day")  # Stricter limits for batch processing
     @jwt_required()
     def post(self):
         """Analyze multiple texts in a single request.
@@ -291,17 +287,13 @@ class BatchAnalyze(Resource):
         Supports up to 100 texts per request. Uses batch processing
         for efficient transformer inference.
         """
-        data = request.get_json()
+        schema = BatchTextInputSchema()
+        try:
+            data = schema.load(request.get_json())
+        except ValidationError as err:
+            analysis_ns.abort(400, f'Validation error: {err.messages}')
 
-        if not data or 'texts' not in data:
-            analysis_ns.abort(400, 'Texts field is required')
-
-        # Validate batch input
-        validation = validate_batch_input(data['texts'], max_texts=100)
-        if not validation['valid']:
-            analysis_ns.abort(400, validation['error'])
-
-        texts = validation['texts']
+        texts = data['texts']
         include_emotions = data.get('include_emotions', True)
 
         start_time = time.time()

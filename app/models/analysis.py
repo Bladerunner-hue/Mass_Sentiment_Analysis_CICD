@@ -40,7 +40,7 @@ class SentimentAnalysis(db.Model):
     __tablename__ = 'sentiment_analyses'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     input_text: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default='web')
 
@@ -60,7 +60,12 @@ class SentimentAnalysis(db.Model):
     processing_time_ms: Mapped[int] = mapped_column(Integer, default=0)
     text_length: Mapped[int] = mapped_column(Integer, default=0)
     word_count: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    stream_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
 
     # Relationships
     user = relationship('User', back_populates='analyses')
@@ -68,7 +73,8 @@ class SentimentAnalysis(db.Model):
     # Composite indexes for common queries
     __table_args__ = (
         Index('idx_user_sentiment_date', 'user_id', 'sentiment', 'created_at'),
-        Index('idx_user_emotion_date', 'user_id', 'primary_emotion', 'created_at'),
+        Index('idx_user_emotion_date', 'user_id', 'primary_emotion',
+              'created_at'),
         Index('idx_source_date', 'source', 'created_at'),
     )
 
@@ -110,7 +116,7 @@ class SentimentAnalysis(db.Model):
         return data
 
     @classmethod
-    def create_from_result(cls, user_id: int, text: str, result: dict,
+    def create_from_result(cls, user_id: Optional[int], text: str, result: dict,
                           source: str = 'web') -> 'SentimentAnalysis':
         """Create a SentimentAnalysis instance from service result.
 
@@ -160,7 +166,9 @@ class SentimentAnalysis(db.Model):
         if total == 0:
             return {
                 'total_analyses': 0,
-                'sentiment_distribution': {'positive': 0, 'negative': 0, 'neutral': 0},
+                'sentiment_distribution': {
+                    'positive': 0, 'negative': 0, 'neutral': 0
+                },
                 'emotion_distribution': {},
                 'average_confidence': 0,
                 'average_processing_time_ms': 0
@@ -170,7 +178,9 @@ class SentimentAnalysis(db.Model):
         sentiment_counts = db.session.query(
             SentimentAnalysis.sentiment,
             func.count(SentimentAnalysis.id)
-        ).filter_by(user_id=user_id).group_by(SentimentAnalysis.sentiment).all()
+        ).filter_by(user_id=user_id).group_by(
+            SentimentAnalysis.sentiment
+        ).all()
 
         sentiment_dist = {s: c for s, c in sentiment_counts}
 
