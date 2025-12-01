@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         PYTHON_VERSION = "3.11"
-        VENV_PATH = "${WORKSPACE}/venv"
         FLASK_CONFIG = "testing"
         FLASK_APP = "wsgi.py"
     }
@@ -29,34 +28,17 @@ pipeline {
                 sh '''
                     echo "Setting up Python environment..."
 
-                    # Install required system packages for Python venv
-                    sudo apt update && sudo apt install -y python3-venv python3-pip || true
+                    # Use system python3 and install packages directly (no venv needed for Jenkins)
+                    PYTHON_CMD="python3"
 
-                    # Try to use pyenv python3 if available, otherwise system python3
-                    if command -v pyenv &> /dev/null && pyenv versions | grep -q "3.11.11"; then
-                        echo "Found pyenv 3.11.11"
-                        export PATH="$HOME/.pyenv/bin:$PATH"
-                        pyenv shell 3.11.11
-                        PYTHON_CMD="python"
-                    else
-                        echo "Using system python3"
-                        PYTHON_CMD="python3"
-                    fi
+                    echo "Installing Python packages directly..."
+                    $PYTHON_CMD -m pip install --user --upgrade pip wheel setuptools
+                    $PYTHON_CMD -m pip install --user -r requirements.txt
+                    $PYTHON_CMD -m pip install --user -r requirements-dev.txt
 
-                    echo "Setting up Python virtual environment..."
-                    $PYTHON_CMD -m venv ${VENV_PATH} || (
-                        echo "venv creation failed, trying manual pip installation..."
-                        $PYTHON_CMD -m ensurepip --upgrade || (
-                            echo "ensurepip failed, installing pip manually..."
-                            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-                            $PYTHON_CMD get-pip.py
-                        )
-                        $PYTHON_CMD -m venv ${VENV_PATH}
-                    )
-                    . ${VENV_PATH}/bin/activate
-                    pip install --upgrade pip wheel setuptools
-                    pip install -r requirements.txt
-                    pip install -r requirements-dev.txt
+                    # Add local pip bin to PATH
+                    export PATH="$HOME/.local/bin:$PATH"
+
                     echo "Dependencies installed successfully"
                 '''
             }
@@ -67,7 +49,7 @@ pipeline {
                 stage('Flake8 Linting') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Running Flake8 linting..."
                             flake8 app/ tests/ --max-line-length=100 --ignore=E501,W503 \
                                 --output-file=flake8-report.txt --tee || true
@@ -82,16 +64,16 @@ pipeline {
                 stage('Black Formatting') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Checking code formatting with Black..."
-                            black --check --diff app/ tests/ || echo "Formatting issues found"
+                            black --check --diff app/ tests/ || true
                         '''
                     }
                 }
                 stage('isort Import Sorting') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Checking import sorting with isort..."
                             isort --check-only --diff app/ tests/ || echo "Import sorting issues found"
                         '''
@@ -100,7 +82,7 @@ pipeline {
                 stage('Type Checking') {
                     steps {
                         sh '''
-                            . ${VENV_PATH}/bin/activate
+                            export PATH="$HOME/.local/bin:$PATH"
                             echo "Running mypy type checking..."
                             mypy app/ --ignore-missing-imports --no-error-summary || echo "Type checking completed with warnings"
                         '''
@@ -112,7 +94,7 @@ pipeline {
         stage('Security Scan') {
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Running Bandit security scan..."
                     bandit -r app/ -f txt -o bandit-report.txt || true
                     cat bandit-report.txt
@@ -128,7 +110,7 @@ pipeline {
         stage('Unit Tests') {
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Running unit tests with pytest..."
                     pytest tests/ -v \
                         --junitxml=test-results.xml \
@@ -151,7 +133,7 @@ pipeline {
         stage('Database Migration Test') {
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Testing database migrations..."
                     export FLASK_CONFIG=testing
                     flask db upgrade || echo "No migrations to run"
@@ -190,7 +172,7 @@ pipeline {
             }
             steps {
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Running Flask application smoke test..."
 
                     # Start the app in background
@@ -224,7 +206,7 @@ pipeline {
             steps {
                 echo 'Deploying to staging environment...'
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Staging deployment would happen here"
                 '''
             }
@@ -277,7 +259,7 @@ pipeline {
             steps {
                 echo 'Deploying to production environment...'
                 sh '''
-                    . ${VENV_PATH}/bin/activate
+                    export PATH="$HOME/.local/bin:$PATH"
                     echo "Production deployment configured"
                     # Production deployment commands would go here
                     # Example:
