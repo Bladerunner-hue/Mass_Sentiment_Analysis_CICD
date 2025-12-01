@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "macros.html" import sentiment_badge, emotion_badge, score_meter, confirm_button %}
+
+{% block title %}Analysis #{{ analysis.id }} - Sentiment Analyzer{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <a href="{{ url_for('main.history') }}" class="text-blue-600 hover:text-blue-700 text-sm">
+            &larr; Back to History
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2">Analysis Details</h1>
+        <p class="mt-2 text-gray-600">
+            Analyzed on {{ analysis.created_at.strftime('%B %d, %Y at %H:%M') }}
+            via {{ analysis.source }}
+        </p>
+    </div>
+
+    <!-- Original Text -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Original Text</h2>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-gray-800 whitespace-pre-wrap">{{ analysis.input_text }}</p>
+        </div>
+        <div class="mt-3 text-sm text-gray-500">
+            {{ analysis.text_length }} characters &bull; {{ analysis.word_count }} words
+        </div>
+    </div>
+
+    <!-- Sentiment Analysis -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">Sentiment Analysis</h2>
+            {{ sentiment_badge(analysis.sentiment, analysis.confidence, 'lg') }}
+        </div>
+
+        <div class="space-y-4">
+            {{ score_meter(analysis.positive_score, label='Positive', color='green') }}
+            {{ score_meter(analysis.negative_score, label='Negative', color='red') }}
+            {{ score_meter(analysis.neutral_score, label='Neutral', color='gray') }}
+        </div>
+
+        <div class="mt-6 grid grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4">
+                <span class="text-sm text-gray-600">Compound Score</span>
+                <p class="text-2xl font-bold text-gray-900">
+                    {{ "%.4f"|format(analysis.compound_score) }}
+                </p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4">
+                <span class="text-sm text-gray-600">Processing Time</span>
+                <p class="text-2xl font-bold text-gray-900">
+                    {{ analysis.processing_time_ms }}ms
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emotion Analysis -->
+    {% if analysis.primary_emotion %}
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">Emotion Analysis</h2>
+            {{ emotion_badge(analysis.primary_emotion, analysis.confidence, 'lg') }}
+        </div>
+
+        {% if analysis.emotion_scores %}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% for emotion, score in analysis.emotion_scores.items()|sort(attribute=1, reverse=true) %}
+            <div class="p-4 rounded-lg {% if emotion == analysis.primary_emotion %}bg-blue-50 border-2 border-blue-200{% else %}bg-gray-50{% endif %}">
+                <div class="text-xs text-gray-500 uppercase tracking-wide">{{ emotion }}</div>
+                <div class="mt-1 flex items-baseline">
+                    <span class="text-2xl font-bold text-gray-900">{{ (score * 100)|int }}</span>
+                    <span class="ml-1 text-sm text-gray-500">%</span>
+                </div>
+                <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                    <div class="{% if emotion == analysis.primary_emotion %}bg-blue-500{% else %}bg-gray-400{% endif %} h-2 rounded-full"
+                         style="width: {{ (score * 100)|int }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="mt-6 h-64">
+            <canvas id="emotionChart"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
+        <div class="flex gap-4">
+            <a href="{{ url_for('main.analyze') }}"
+               class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                New Analysis
+            </a>
+            {{ confirm_button('Delete', url_for('main.delete_analysis', analysis_id=analysis.id), confirm_message='Delete this analysis?') }}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if analysis.emotion_scores %}
+<script>
+const emotionCtx = document.getElementById('emotionChart').getContext('2d');
+const emotionData = {{ analysis.emotion_scores|tojson|safe }};
+
+new Chart(emotionCtx, {
+    type: 'radar',
+    data: {
+        labels: Object.keys(emotionData).map(e => e.charAt(0).toUpperCase() + e.slice(1)),
+        datasets: [{
+            label: 'Emotion Scores',
+            data: Object.values(emotionData),
+            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+            borderColor: 'rgba(59, 130, 246, 1)',
+            borderWidth: 2,
+            pointBackgroundColor: 'rgba(59, 130, 246, 1)'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            r: {
+                beginAtZero: true,
+                max: 1
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
