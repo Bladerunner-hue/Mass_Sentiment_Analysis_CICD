@@ -23,8 +23,12 @@ class CustomSentimentService:
         device: Optional[str] = None,
         fallback_to_transformer: bool = True,
     ):
-        self.model_path = model_path or os.getenv("CUSTOM_MODEL_PATH", "models/checkpoints/bilstm_attention.pt")
-        self.tokenizer_path = tokenizer_path or os.getenv("CUSTOM_TOKENIZER_PATH", "models/tokenizer.pkl")
+        self.model_path = model_path or os.getenv(
+            "CUSTOM_MODEL_PATH", "models/checkpoints/bilstm_attention.pt"
+        )
+        self.tokenizer_path = tokenizer_path or os.getenv(
+            "CUSTOM_TOKENIZER_PATH", "models/tokenizer.pkl"
+        )
         self.device = device or os.getenv("CUSTOM_MODEL_DEVICE")
         self.fallback_to_transformer = fallback_to_transformer
 
@@ -32,6 +36,12 @@ class CustomSentimentService:
         self._load_predictor()
 
     def _load_predictor(self) -> None:
+        if not self.model_path or not self.tokenizer_path:
+            self.predictor = None
+            if not self.fallback_to_transformer:
+                raise ValueError("model_path and tokenizer_path are required when fallback is disabled")
+            return
+        
         try:
             self.predictor = CustomModelPredictor(
                 model_path=self.model_path,

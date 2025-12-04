@@ -21,19 +21,18 @@ def create_app(config_name=None):
     Returns:
         Flask: Configured Flask application instance
     """
-    app = Flask(__name__,
-                template_folder='templates',
-                static_folder='static')
+    app = Flask(__name__, template_folder="templates", static_folder="static")
 
     # Load configuration
     if config_name is None:
-        config_name = os.environ.get('FLASK_CONFIG', 'development')
+        config_name = os.environ.get("FLASK_CONFIG", "development")
 
     from config import get_config
+
     app.config.from_object(get_config(config_name))
 
     # Ensure upload folder exists
-    os.makedirs(app.config.get('UPLOAD_FOLDER', 'uploads'), exist_ok=True)
+    os.makedirs(app.config.get("UPLOAD_FOLDER", "uploads"), exist_ok=True)
 
     # Initialize extensions
     _init_extensions(app)
@@ -63,23 +62,36 @@ def _init_extensions(app):
         app: Flask application instance
     """
     from app.extensions import (
-        db, migrate, login_manager, jwt, cache, limiter, csrf, celery_init_app
+        db,
+        migrate,
+        login_manager,
+        jwt,
+        cache,
+        limiter,
+        csrf,
+        celery_init_app,
     )
 
     # Initialize CORS
     from flask_cors import CORS
-    if app.config.get('ENV') == 'production':
-        allowed_origins = os.environ.get('ALLOWED_ORIGINS', '').split(',') \
-            if os.environ.get('ALLOWED_ORIGINS') \
-            else ['http://localhost:3000', 'http://localhost:5000']
-        CORS(app, resources={
-            r"/api/*": {
-                "origins": allowed_origins,
-                "methods": ["GET", "POST", "PUT", "DELETE"],
-                "allow_headers": ["Content-Type", "Authorization"],
-                "max_age": 3600
-            }
-        })
+
+    if app.config.get("ENV") == "production":
+        allowed_origins = (
+            os.environ.get("ALLOWED_ORIGINS", "").split(",")
+            if os.environ.get("ALLOWED_ORIGINS")
+            else ["http://localhost:3000", "http://localhost:5000"]
+        )
+        CORS(
+            app,
+            resources={
+                r"/api/*": {
+                    "origins": allowed_origins,
+                    "methods": ["GET", "POST", "PUT", "DELETE"],
+                    "allow_headers": ["Content-Type", "Authorization"],
+                    "max_age": 3600,
+                }
+            },
+        )
     else:
         CORS(app)  # Allow all in development
 
@@ -105,7 +117,7 @@ def _init_extensions(app):
     cache.init_app(app)
     csrf.init_app(app)
 
-    if app.config.get('RATELIMIT_ENABLED', True):
+    if app.config.get("RATELIMIT_ENABLED", True):
         limiter.init_app(app)
 
     # Initialize Celery
@@ -122,24 +134,29 @@ def _register_blueprints(app):
 
     # Main web UI blueprint
     from app.main import bp as main_bp
+
     app.register_blueprint(main_bp)
 
     # API blueprint (exempt from CSRF)
     from app.api import bp as api_bp
-    app.register_blueprint(api_bp, url_prefix='/api/v1')
+
+    app.register_blueprint(api_bp, url_prefix="/api/v1")
     csrf.exempt(api_bp)
 
     # Batch processing blueprint
     from app.batch import bp as batch_bp
-    app.register_blueprint(batch_bp, url_prefix='/batch')
+
+    app.register_blueprint(batch_bp, url_prefix="/batch")
 
     # Authentication blueprint
     from app.auth import bp as auth_bp
-    app.register_blueprint(auth_bp, url_prefix='/auth')
+
+    app.register_blueprint(auth_bp, url_prefix="/auth")
 
     # Dataset management blueprint
     from app.datasets import bp as datasets_bp
-    app.register_blueprint(datasets_bp, url_prefix='/datasets')
+
+    app.register_blueprint(datasets_bp, url_prefix="/datasets")
     csrf.exempt(datasets_bp)
 
 
@@ -150,8 +167,12 @@ def _register_error_handlers(app):
         app: Flask application instance
     """
     from app.errors.handlers import (
-        handle_400, handle_401, handle_403, handle_404, handle_500,
-        handle_validation_error
+        handle_400,
+        handle_401,
+        handle_403,
+        handle_404,
+        handle_500,
+        handle_validation_error,
     )
     from marshmallow import ValidationError
 
@@ -169,15 +190,13 @@ def _configure_logging(app):
     Args:
         app: Flask application instance
     """
-    log_level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO'))
+    log_level = getattr(logging, app.config.get("LOG_LEVEL", "INFO"))
 
     # Remove default handlers
     app.logger.handlers = []
 
     # Create formatter
-    formatter = logging.Formatter(
-        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
-    )
+    formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
 
     # Console handler
     console_handler = logging.StreamHandler()
@@ -187,13 +206,13 @@ def _configure_logging(app):
 
     # File handler (production only)
     if not app.debug and not app.testing:
-        log_dir = os.path.join(os.path.dirname(app.root_path), 'logs')
+        log_dir = os.path.join(os.path.dirname(app.root_path), "logs")
         os.makedirs(log_dir, exist_ok=True)
 
         file_handler = RotatingFileHandler(
-            os.path.join(log_dir, 'sentiment_analyzer.log'),
+            os.path.join(log_dir, "sentiment_analyzer.log"),
             maxBytes=10240000,  # 10MB
-            backupCount=10
+            backupCount=10,
         )
         file_handler.setLevel(log_level)
         file_handler.setFormatter(formatter)
@@ -209,17 +228,19 @@ def _register_shell_context(app):
     Args:
         app: Flask application instance
     """
+
     @app.shell_context_processor
     def make_shell_context():
         from app.extensions import db
         from app.models.user import User
         from app.models.analysis import SentimentAnalysis
         from app.models.batch_job import BatchJob
+
         return {
-            'db': db,
-            'User': User,
-            'SentimentAnalysis': SentimentAnalysis,
-            'BatchJob': BatchJob
+            "db": db,
+            "User": User,
+            "SentimentAnalysis": SentimentAnalysis,
+            "BatchJob": BatchJob,
         }
 
 
@@ -229,12 +250,14 @@ def _register_cli_commands(app):
     Args:
         app: Flask application instance
     """
+
     @app.cli.command()
     def init_db():
         """Initialize the database."""
         from app.extensions import db
+
         db.create_all()
-        print('Database initialized.')
+        print("Database initialized.")
 
     @app.cli.command()
     def seed_db():
@@ -243,31 +266,29 @@ def _register_cli_commands(app):
         from app.models.user import User
 
         # Create admin user if not exists
-        admin = User.query.filter_by(email='admin@example.com').first()
+        admin = User.query.filter_by(email="admin@example.com").first()
         if not admin:
-            admin = User(
-                username='admin',
-                email='admin@example.com',
-                is_admin=True
-            )
-            admin.set_password('admin123')
+            admin = User(username="admin", email="admin@example.com", is_admin=True)
+            admin.set_password("admin123")
             db.session.add(admin)
             db.session.commit()
-            print('Admin user created: admin@example.com / admin123')
+            print("Admin user created: admin@example.com / admin123")
         else:
-            print('Admin user already exists.')
+            print("Admin user already exists.")
 
     @app.cli.command()
     def clear_cache():
         """Clear the application cache."""
         from app.extensions import cache
+
         cache.clear()
-        print('Cache cleared.')
+        print("Cache cleared.")
 
     @app.cli.command()
     def download_model():
         """Download the sentiment analysis model."""
         from app.services.sentiment_service import SentimentService
+
         service = SentimentService()
         service._load_emotion_model()
-        print('Model downloaded successfully.')
+        print("Model downloaded successfully.")

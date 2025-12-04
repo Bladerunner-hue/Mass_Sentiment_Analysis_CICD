@@ -26,7 +26,7 @@ class User(UserMixin, db.Model):
         api_key: API key for programmatic access
     """
 
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
@@ -36,17 +36,21 @@ class User(UserMixin, db.Model):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    api_key: Mapped[Optional[str]] = mapped_column(String(64), unique=True, nullable=True, index=True)
+    api_key: Mapped[Optional[str]] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
 
     # Relationships
-    analyses = relationship('SentimentAnalysis', back_populates='user', lazy='dynamic',
-                           cascade='all, delete-orphan')
-    batch_jobs = relationship('BatchJob', back_populates='user', lazy='dynamic',
-                             cascade='all, delete-orphan')
+    analyses = relationship(
+        "SentimentAnalysis", back_populates="user", lazy="dynamic", cascade="all, delete-orphan"
+    )
+    batch_jobs = relationship(
+        "BatchJob", back_populates="user", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         """String representation of User."""
-        return f'<User {self.username}>'
+        return f"<User {self.username}>"
 
     def set_password(self, password: str) -> None:
         """Hash and set the user's password.
@@ -74,6 +78,7 @@ class User(UserMixin, db.Model):
             str: The generated API key
         """
         import secrets
+
         self.api_key = secrets.token_urlsafe(32)
         return self.api_key
 
@@ -95,20 +100,20 @@ class User(UserMixin, db.Model):
             dict: User data dictionary
         """
         data = {
-            'id': self.id,
-            'username': self.username,
-            'is_admin': self.is_admin,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'analysis_count': self.analyses.count(),
-            'batch_job_count': self.batch_jobs.count()
+            "id": self.id,
+            "username": self.username,
+            "is_admin": self.is_admin,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_login": self.last_login.isoformat() if self.last_login else None,
+            "analysis_count": self.analyses.count(),
+            "batch_job_count": self.batch_jobs.count(),
         }
         if include_email:
-            data['email'] = self.email
+            data["email"] = self.email
         return data
 
     @staticmethod
-    def get_by_api_key(api_key: str) -> Optional['User']:
+    def get_by_api_key(api_key: str) -> Optional["User"]:
         """Find a user by their API key.
 
         Args:
@@ -122,7 +127,7 @@ class User(UserMixin, db.Model):
         return User.query.filter_by(api_key=api_key, is_active=True).first()
 
     @staticmethod
-    def get_by_email(email: str) -> Optional['User']:
+    def get_by_email(email: str) -> Optional["User"]:
         """Find a user by their email address.
 
         Args:
@@ -134,7 +139,7 @@ class User(UserMixin, db.Model):
         return User.query.filter_by(email=email.lower()).first()
 
     @staticmethod
-    def get_by_username(username: str) -> Optional['User']:
+    def get_by_username(username: str) -> Optional["User"]:
         """Find a user by their username.
 
         Args:

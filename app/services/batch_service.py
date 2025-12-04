@@ -15,6 +15,7 @@ import pandas as pd
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
@@ -34,17 +35,27 @@ class BatchService:
         max_rows: Maximum number of rows to process
     """
 
-    DEFAULT_TEXT_COLUMN = 'Text'
-    ALLOWED_TEXT_COLUMNS = ['text', 'Text', 'content', 'Content', 'message',
-                            'Message', 'review', 'Review', 'comment', 'Comment']
+    DEFAULT_TEXT_COLUMN = "Text"
+    ALLOWED_TEXT_COLUMNS = [
+        "text",
+        "Text",
+        "content",
+        "Content",
+        "message",
+        "Message",
+        "review",
+        "Review",
+        "comment",
+        "Comment",
+    ]
 
     def __init__(
         self,
-        sentiment_service: SentimentService = None,
+        sentiment_service: Optional[SentimentService] = None,
         max_file_size: int = 100 * 1024 * 1024,  # 100MB
         max_rows: int = 100000,
         chunk_size: int = 1000,
-        memory_threshold: float = 0.8
+        memory_threshold: float = 0.8,
     ):
         """Initialize batch service.
 
@@ -80,11 +91,8 @@ class BatchService:
             ValueError: If file is invalid
         """
         # Check file extension
-        if not filename.lower().endswith('.csv'):
-            return {
-                'valid': False,
-                'error': 'File must be a CSV file'
-            }
+        if not filename.lower().endswith(".csv"):
+            return {"valid": False, "error": "File must be a CSV file"}
 
         # Check file size
         file.seek(0, 2)  # Seek to end
@@ -93,30 +101,24 @@ class BatchService:
 
         if size > self.max_file_size:
             return {
-                'valid': False,
-                'error': f'File size ({size} bytes) exceeds maximum '
-                        f'({self.max_file_size} bytes)'
+                "valid": False,
+                "error": f"File size ({size} bytes) exceeds maximum "
+                f"({self.max_file_size} bytes)",
             }
 
         if size == 0:
-            return {
-                'valid': False,
-                'error': 'File is empty'
-            }
+            return {"valid": False, "error": "File is empty"}
 
         # Try to read CSV
         try:
             # Read first chunk to validate structure
-            content = file.read().decode('utf-8')
+            content = file.read().decode("utf-8")
             file.seek(0)
 
             df = pd.read_csv(io.StringIO(content), nrows=5)
 
             if df.empty:
-                return {
-                    'valid': False,
-                    'error': 'CSV file contains no data'
-                }
+                return {"valid": False, "error": "CSV file contains no data"}
 
             # Find text column
             text_column = None
@@ -127,9 +129,9 @@ class BatchService:
 
             if not text_column:
                 return {
-                    'valid': False,
-                    'error': f'CSV must contain one of these columns: '
-                            f'{", ".join(self.ALLOWED_TEXT_COLUMNS)}'
+                    "valid": False,
+                    "error": f"CSV must contain one of these columns: "
+                    f'{", ".join(self.ALLOWED_TEXT_COLUMNS)}',
                 }
 
             # Count total rows
@@ -138,37 +140,28 @@ class BatchService:
 
             if row_count > self.max_rows:
                 return {
-                    'valid': False,
-                    'error': f'File contains {row_count} rows, maximum is {self.max_rows}'
+                    "valid": False,
+                    "error": f"File contains {row_count} rows, maximum is {self.max_rows}",
                 }
 
             return {
-                'valid': True,
-                'row_count': row_count,
-                'text_column': text_column,
-                'columns': list(df.columns)
+                "valid": True,
+                "row_count": row_count,
+                "text_column": text_column,
+                "columns": list(df.columns),
             }
 
         except pd.errors.EmptyDataError:
-            return {
-                'valid': False,
-                'error': 'CSV file is empty or malformed'
-            }
+            return {"valid": False, "error": "CSV file is empty or malformed"}
         except pd.errors.ParserError as e:
-            return {
-                'valid': False,
-                'error': f'CSV parsing error: {str(e)}'
-            }
+            return {"valid": False, "error": f"CSV parsing error: {str(e)}"}
         except UnicodeDecodeError:
             return {
-                'valid': False,
-                'error': 'File encoding not supported. Please use UTF-8 encoded CSV.'
+                "valid": False,
+                "error": "File encoding not supported. Please use UTF-8 encoded CSV.",
             }
         except Exception as e:
-            return {
-                'valid': False,
-                'error': f'Error reading file: {str(e)}'
-            }
+            return {"valid": False, "error": f"Error reading file: {str(e)}"}
 
     def process_dataframe(
         self,
@@ -176,7 +169,7 @@ class BatchService:
         text_column: str,
         include_emotions: bool = True,
         batch_size: int = 32,
-        progress_callback=None
+        progress_callback=None,
     ) -> pd.DataFrame:
         """Process a DataFrame and add sentiment/emotion columns.
 
@@ -190,16 +183,11 @@ class BatchService:
         Returns:
             pd.DataFrame: DataFrame with added sentiment/emotion columns
         """
-        texts = df[text_column].fillna('').astype(str).tolist()
+        texts = df[text_column].fillna("").astype(str).tolist()
         total = len(texts)
 
         # Track statistics
-        stats = {
-            'positive': 0,
-            'negative': 0,
-            'neutral': 0,
-            'emotions': {}
-        }
+        stats = {"positive": 0, "negative": 0, "neutral": 0, "emotions": {}}
 
         def update_progress(processed, total_count):
             if progress_callback:
@@ -210,7 +198,7 @@ class BatchService:
             texts,
             batch_size=batch_size,
             include_emotions=include_emotions,
-            progress_callback=update_progress
+            progress_callback=update_progress,
         )
 
         # Add results to DataFrame
@@ -223,38 +211,38 @@ class BatchService:
         confidences = []
 
         for result in results:
-            sentiment = result['sentiment']
+            sentiment = result["sentiment"]
             sentiments.append(sentiment)
-            compound_scores.append(result['compound_score'])
-            pos_scores.append(result['scores']['pos'])
-            neg_scores.append(result['scores']['neg'])
-            neu_scores.append(result['scores']['neu'])
+            compound_scores.append(result["compound_score"])
+            pos_scores.append(result["scores"]["pos"])
+            neg_scores.append(result["scores"]["neg"])
+            neu_scores.append(result["scores"]["neu"])
 
             # Update sentiment stats
             stats[sentiment] = stats.get(sentiment, 0) + 1
 
-            if include_emotions and 'primary_emotion' in result:
-                emotion = result['primary_emotion']
+            if include_emotions and "primary_emotion" in result:
+                emotion = result["primary_emotion"]
                 primary_emotions.append(emotion)
-                confidences.append(result['confidence'])
+                confidences.append(result["confidence"])
 
                 # Update emotion stats
-                stats['emotions'][emotion] = stats['emotions'].get(emotion, 0) + 1
+                stats["emotions"][emotion] = stats["emotions"].get(emotion, 0) + 1
             else:
                 primary_emotions.append(None)
                 confidences.append(None)
 
         # Add columns to DataFrame
         df = df.copy()
-        df['Sentiment'] = sentiments
-        df['Compound_Score'] = compound_scores
-        df['Positive_Score'] = pos_scores
-        df['Negative_Score'] = neg_scores
-        df['Neutral_Score'] = neu_scores
+        df["Sentiment"] = sentiments
+        df["Compound_Score"] = compound_scores
+        df["Positive_Score"] = pos_scores
+        df["Negative_Score"] = neg_scores
+        df["Neutral_Score"] = neu_scores
 
         if include_emotions:
-            df['Primary_Emotion'] = primary_emotions
-            df['Emotion_Confidence'] = confidences
+            df["Primary_Emotion"] = primary_emotions
+            df["Emotion_Confidence"] = confidences
 
         # Final progress update
         if progress_callback:
@@ -265,10 +253,10 @@ class BatchService:
     def process_file(
         self,
         file_path: str,
-        output_path: str = None,
+        output_path: Optional[str] = None,
         include_emotions: bool = True,
         batch_size: int = 32,
-        progress_callback=None
+        progress_callback: Optional[Callable[..., Any]] = None,
     ) -> Dict[str, Any]:
         """Process a CSV file and save results.
 
@@ -299,10 +287,7 @@ class BatchService:
                     break
 
             if not text_column:
-                return {
-                    'success': False,
-                    'error': 'Text column not found in CSV'
-                }
+                return {"success": False, "error": "Text column not found in CSV"}
 
             # Process DataFrame
             result_df = self.process_dataframe(
@@ -310,13 +295,13 @@ class BatchService:
                 text_column,
                 include_emotions=include_emotions,
                 batch_size=batch_size,
-                progress_callback=progress_callback
+                progress_callback=progress_callback,
             )
 
             # Generate output path if not provided
             if not output_path:
                 base, ext = os.path.splitext(file_path)
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_path = f"{base}_analyzed_{timestamp}{ext}"
 
             # Save results
@@ -324,27 +309,24 @@ class BatchService:
 
             # Calculate final statistics
             stats = {
-                'positive': int((result_df['Sentiment'] == 'positive').sum()),
-                'negative': int((result_df['Sentiment'] == 'negative').sum()),
-                'neutral': int((result_df['Sentiment'] == 'neutral').sum())
+                "positive": int((result_df["Sentiment"] == "positive").sum()),
+                "negative": int((result_df["Sentiment"] == "negative").sum()),
+                "neutral": int((result_df["Sentiment"] == "neutral").sum()),
             }
 
-            if include_emotions and 'Primary_Emotion' in result_df.columns:
-                emotion_counts = result_df['Primary_Emotion'].value_counts()
-                stats['emotions'] = emotion_counts.to_dict()
+            if include_emotions and "Primary_Emotion" in result_df.columns:
+                emotion_counts = result_df["Primary_Emotion"].value_counts()
+                stats["emotions"] = emotion_counts.to_dict()
 
             return {
-                'success': True,
-                'output_path': output_path,
-                'row_count': len(result_df),
-                'stats': stats
+                "success": True,
+                "output_path": output_path,
+                "row_count": len(result_df),
+                "stats": stats,
             }
 
         except Exception as e:
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     def _check_memory_usage(self) -> bool:
         """Check if memory usage is above threshold.
@@ -357,13 +339,57 @@ class BatchService:
         memory = psutil.virtual_memory()
         return memory.percent / 100 > self.memory_threshold
 
-    def _cleanup_memory(self):
+    def _cleanup_memory(self) -> None:
         """Force garbage collection and memory cleanup."""
         gc.collect()
 
-    def process_file_streaming(self, file_path: str, output_path: str = None,
-                              include_emotions: bool = True, batch_size: int = 32,
-                              progress_callback: Callable = None) -> Dict[str, Any]:
+    def _validate_file_path(self, file_path: str) -> Dict[str, Any]:
+        """Validate a CSV file by path.
+
+        Args:
+            file_path: Path to the CSV file
+
+        Returns:
+            dict: Validation result with keys valid, error, row_count, text_column
+        """
+        if not os.path.exists(file_path):
+            return {"valid": False, "error": "File not found"}
+        
+        if not file_path.lower().endswith(".csv"):
+            return {"valid": False, "error": "File must be a CSV file"}
+
+        try:
+            with open(file_path, "rb") as f:
+                return self.validate_file(f, os.path.basename(file_path))
+        except Exception as e:
+            return {"valid": False, "error": str(e)}
+
+    def _detect_text_column_from_path(self, file_path: str) -> Optional[str]:
+        """Detect the text column in a CSV file.
+
+        Args:
+            file_path: Path to the CSV file
+
+        Returns:
+            str or None: Name of the text column if found
+        """
+        try:
+            df = pd.read_csv(file_path, nrows=5)
+            for col in self.ALLOWED_TEXT_COLUMNS:
+                if col in df.columns:
+                    return col
+            return None
+        except Exception:
+            return None
+
+    def process_file_streaming(
+        self,
+        file_path: str,
+        output_path: Optional[str] = None,
+        include_emotions: bool = True,
+        batch_size: int = 32,
+        progress_callback: Optional[Callable[..., Any]] = None,
+    ) -> Dict[str, Any]:
         """Process a large CSV file using streaming to handle memory efficiently.
 
         Args:
@@ -378,36 +404,36 @@ class BatchService:
         """
         try:
             # Validate file first
-            validation = self.validate_file(file_path)
-            if not validation['valid']:
-                return {'success': False, 'error': validation['error']}
+            validation = self._validate_file_path(file_path)
+            if not validation["valid"]:
+                return {"success": False, "error": validation["error"]}
 
             # Get text column
-            text_column = self._detect_text_column(file_path)
+            text_column = self._detect_text_column_from_path(file_path)
             if not text_column:
-                return {'success': False, 'error': 'No text column found'}
+                return {"success": False, "error": "No text column found"}
 
             # Count total rows for progress tracking
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 total_rows = sum(1 for _ in f) - 1  # Subtract header
 
             if total_rows > self.max_rows:
                 return {
-                    'success': False,
-                    'error': f'File contains {total_rows} rows, maximum is {self.max_rows}'
+                    "success": False,
+                    "error": f"File contains {total_rows} rows, maximum is {self.max_rows}",
                 }
 
             # Generate output path
             if not output_path:
                 base, ext = os.path.splitext(file_path)
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_path = f"{base}_analyzed_{timestamp}{ext}"
 
             # Process in chunks
             processed_rows = 0
-            stats = {'positive': 0, 'negative': 0, 'neutral': 0, 'emotions': {}}
+            stats = {"positive": 0, "negative": 0, "neutral": 0, "emotions": {}}
 
-            with open(output_path, 'w', newline='', encoding='utf-8') as outfile:
+            with open(output_path, "w", newline="", encoding="utf-8") as outfile:
                 writer = None
 
                 # Read and process in chunks
@@ -422,13 +448,13 @@ class BatchService:
 
                     # Update stats
                     for _, row in processed_chunk.iterrows():
-                        sentiment = row.get('Sentiment', '').lower()
+                        sentiment = row.get("Sentiment", "").lower()
                         if sentiment in stats:
                             stats[sentiment] += 1
 
-                        if include_emotions and 'Primary_Emotion' in row:
-                            emotion = row['Primary_Emotion']
-                            stats['emotions'][emotion] = stats['emotions'].get(emotion, 0) + 1
+                        if include_emotions and "Primary_Emotion" in row:
+                            emotion = row["Primary_Emotion"]
+                            stats["emotions"][emotion] = stats["emotions"].get(emotion, 0) + 1
 
                     # Write chunk to output
                     if writer is None:
@@ -450,17 +476,18 @@ class BatchService:
                         self._cleanup_memory()
 
             return {
-                'success': True,
-                'output_path': output_path,
-                'rows_processed': processed_rows,
-                'stats': stats
+                "success": True,
+                "output_path": output_path,
+                "rows_processed": processed_rows,
+                "stats": stats,
             }
 
         except Exception as e:
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
-    def _read_csv_chunks(self, file_path: str, text_column: str,
-                        chunk_size: int) -> Iterator[pd.DataFrame]:
+    def _read_csv_chunks(
+        self, file_path: str, text_column: str, chunk_size: int
+    ) -> Iterator[pd.DataFrame]:
         """Read CSV file in chunks for memory-efficient processing.
 
         Args:
@@ -471,13 +498,13 @@ class BatchService:
         Yields:
             pd.DataFrame: Chunks of the CSV file
         """
-        for chunk in pd.read_csv(file_path, chunksize=chunk_size, encoding='utf-8'):
+        for chunk in pd.read_csv(file_path, chunksize=chunk_size, encoding="utf-8"):
             # Ensure text column exists and clean data
             if text_column not in chunk.columns:
                 continue
 
             # Fill NaN values and convert to string
-            chunk[text_column] = chunk[text_column].fillna('').astype(str)
+            chunk[text_column] = chunk[text_column].fillna("").astype(str)
             yield chunk
 
     def generate_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
@@ -490,49 +517,51 @@ class BatchService:
             dict: Summary statistics
         """
         summary = {
-            'total_records': len(df),
-            'sentiment_distribution': {},
-            'emotion_distribution': {},
-            'average_scores': {}
+            "total_records": len(df),
+            "sentiment_distribution": {},
+            "emotion_distribution": {},
+            "average_scores": {},
         }
 
         # Sentiment distribution
-        if 'Sentiment' in df.columns:
-            sentiment_counts = df['Sentiment'].value_counts()
+        if "Sentiment" in df.columns:
+            sentiment_counts = df["Sentiment"].value_counts()
             total = len(df)
-            summary['sentiment_distribution'] = {
-                'positive': {
-                    'count': int(sentiment_counts.get('positive', 0)),
-                    'percentage': round(sentiment_counts.get('positive', 0) / total * 100, 2)
+            summary["sentiment_distribution"] = {
+                "positive": {
+                    "count": int(sentiment_counts.get("positive", 0)),
+                    "percentage": round(sentiment_counts.get("positive", 0) / total * 100, 2),
                 },
-                'negative': {
-                    'count': int(sentiment_counts.get('negative', 0)),
-                    'percentage': round(sentiment_counts.get('negative', 0) / total * 100, 2)
+                "negative": {
+                    "count": int(sentiment_counts.get("negative", 0)),
+                    "percentage": round(sentiment_counts.get("negative", 0) / total * 100, 2),
                 },
-                'neutral': {
-                    'count': int(sentiment_counts.get('neutral', 0)),
-                    'percentage': round(sentiment_counts.get('neutral', 0) / total * 100, 2)
-                }
+                "neutral": {
+                    "count": int(sentiment_counts.get("neutral", 0)),
+                    "percentage": round(sentiment_counts.get("neutral", 0) / total * 100, 2),
+                },
             }
 
         # Emotion distribution
-        if 'Primary_Emotion' in df.columns:
-            emotion_counts = df['Primary_Emotion'].value_counts()
+        if "Primary_Emotion" in df.columns:
+            emotion_counts = df["Primary_Emotion"].value_counts()
             total = len(df)
-            summary['emotion_distribution'] = {
-                emotion: {
-                    'count': int(count),
-                    'percentage': round(count / total * 100, 2)
-                }
+            summary["emotion_distribution"] = {
+                emotion: {"count": int(count), "percentage": round(count / total * 100, 2)}
                 for emotion, count in emotion_counts.items()
             }
 
         # Average scores
-        score_columns = ['Compound_Score', 'Positive_Score', 'Negative_Score',
-                        'Neutral_Score', 'Emotion_Confidence']
+        score_columns = [
+            "Compound_Score",
+            "Positive_Score",
+            "Negative_Score",
+            "Neutral_Score",
+            "Emotion_Confidence",
+        ]
         for col in score_columns:
             if col in df.columns:
-                summary['average_scores'][col] = round(df[col].mean(), 4)
+                summary["average_scores"][col] = round(df[col].mean(), 4)
 
         return summary
 

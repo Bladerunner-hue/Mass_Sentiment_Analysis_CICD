@@ -61,16 +61,26 @@ def export_kaggle_dataset(
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Download and export a Kaggle dataset to Parquet.")
-    parser.add_argument("--dataset", required=True, help="Kaggle dataset ref (e.g., kazanova/sentiment140)")
+    parser.add_argument(
+        "--dataset", required=True, help="Kaggle dataset ref (e.g., kazanova/sentiment140)"
+    )
     parser.add_argument(
         "--file",
         default=None,
         help="Specific CSV file inside the dataset. If omitted, the first CSV found is used.",
     )
     parser.add_argument("--text-field", default="text", help="Column containing text")
-    parser.add_argument("--sentiment-field", default="sentiment", help="Column containing sentiment labels")
-    parser.add_argument("--emotion-field", default="emotion", help="Column containing emotion labels or will be created")
-    parser.add_argument("--default-emotion", default="neutral", help="Emotion value to fill when missing")
+    parser.add_argument(
+        "--sentiment-field", default="sentiment", help="Column containing sentiment labels"
+    )
+    parser.add_argument(
+        "--emotion-field",
+        default="emotion",
+        help="Column containing emotion labels or will be created",
+    )
+    parser.add_argument(
+        "--default-emotion", default="neutral", help="Emotion value to fill when missing"
+    )
     parser.add_argument(
         "--output",
         default=None,

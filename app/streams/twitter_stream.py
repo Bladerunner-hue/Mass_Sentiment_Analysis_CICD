@@ -3,7 +3,7 @@
 import os
 import json
 from datetime import datetime
-from typing import List
+from typing import List, Set
 
 import redis
 import tweepy
@@ -22,7 +22,7 @@ class TwitterStreamListener(tweepy.StreamingClient):
         super().__init__(bearer_token)
         self.keywords = keywords
         self.service = SentimentService()
-        self.active_streams = set()
+        self.active_streams: Set[str] = set()
 
     def on_tweet(self, tweet):
         """Process each tweet in real-time."""
@@ -39,38 +39,42 @@ class TwitterStreamListener(tweepy.StreamingClient):
                 user_id=None,  # System analysis
                 text=tweet.text,
                 result=result,
-                source='twitter_stream'
+                source="twitter_stream",
             )
             analysis.stream_metadata = {
-                'tweet_id': str(tweet.id),
-                'author_id': str(tweet.author_id),
-                'author_username': getattr(tweet.author, 'username', None),
-                'created_at': str(tweet.created_at),
-                'lang': getattr(tweet, 'lang', None),
-                'retweet_count': getattr(tweet, 'retweet_count', 0),
-                'like_count': getattr(tweet, 'like_count', 0),
-                'keywords': self.keywords
+                "tweet_id": str(tweet.id),
+                "author_id": str(tweet.author_id),
+                "author_username": getattr(tweet.author, "username", None),
+                "created_at": str(tweet.created_at),
+                "lang": getattr(tweet, "lang", None),
+                "retweet_count": getattr(tweet, "retweet_count", 0),
+                "like_count": getattr(tweet, "like_count", 0),
+                "keywords": self.keywords,
             }
 
             db.session.add(analysis)
             db.session.commit()
 
             # Publish to Redis for real-time dashboard
-            redis_client = redis.Redis.from_url(
-                os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+            redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+            redis_client.publish(
+                "sentiment_updates",
+                json.dumps(
+                    {
+                        "type": "twitter_sentiment",
+                        "data": {
+                            "tweet_id": str(tweet.id),
+                            "text": (
+                                tweet.text[:100] + "..." if len(tweet.text) > 100 else tweet.text
+                            ),
+                            "sentiment": result["sentiment"],
+                            "emotion": result["primary_emotion"],
+                            "confidence": result["confidence"],
+                            "timestamp": str(tweet.created_at),
+                        },
+                    }
+                ),
             )
-            redis_client.publish('sentiment_updates', json.dumps({
-                'type': 'twitter_sentiment',
-                'data': {
-                    'tweet_id': str(tweet.id),
-                    'text': tweet.text[:100] + '...' if len(tweet.text) > 100
-                           else tweet.text,
-                    'sentiment': result['sentiment'],
-                    'emotion': result['primary_emotion'],
-                    'confidence': result['confidence'],
-                    'timestamp': str(tweet.created_at)
-                }
-            }))
 
         except SQLAlchemyError as e:
             db.session.rollback()
@@ -94,14 +98,12 @@ class TwitterStreamListener(tweepy.StreamingClient):
 class RedditStreamProcessor:
     """Reddit streaming processor using PRAW."""
 
-    def __init__(self, client_id: str, client_secret: str,
-                 user_agent: str, subreddits: List[str]):
+    def __init__(self, client_id: str, client_secret: str, user_agent: str, subreddits: List[str]):
         try:
             import praw
+
             self.reddit = praw.Reddit(
-                client_id=client_id,
-                client_secret=client_secret,
-                user_agent=user_agent
+                client_id=client_id, client_secret=client_secret, user_agent=user_agent
             )
             self.subreddits = subreddits
             self.service = SentimentService()
@@ -118,37 +120,40 @@ class RedditStreamProcessor:
                 user_id=None,  # System analysis
                 text=submission.selftext or submission.title,
                 result=result,
-                source='reddit_stream'
+                source="reddit_stream",
             )
             analysis.stream_metadata = {
-                'submission_id': submission.id,
-                'subreddit': submission.subreddit.display_name,
-                'author': str(submission.author) if submission.author else None,
-                'created_utc': submission.created_utc,
-                'score': submission.score,
-                'num_comments': submission.num_comments,
-                'url': submission.url
+                "submission_id": submission.id,
+                "subreddit": submission.subreddit.display_name,
+                "author": str(submission.author) if submission.author else None,
+                "created_utc": submission.created_utc,
+                "score": submission.score,
+                "num_comments": submission.num_comments,
+                "url": submission.url,
             }
 
             db.session.add(analysis)
             db.session.commit()
 
             # Publish to Redis
-            redis_client = redis.Redis.from_url(
-                os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+            redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+            redis_client.publish(
+                "sentiment_updates",
+                json.dumps(
+                    {
+                        "type": "reddit_sentiment",
+                        "data": {
+                            "submission_id": submission.id,
+                            "text": (submission.selftext or submission.title)[:100] + "...",
+                            "sentiment": result["sentiment"],
+                            "emotion": result["primary_emotion"],
+                            "confidence": result["confidence"],
+                            "subreddit": submission.subreddit.display_name,
+                            "timestamp": submission.created_utc,
+                        },
+                    }
+                ),
             )
-            redis_client.publish('sentiment_updates', json.dumps({
-                'type': 'reddit_sentiment',
-                'data': {
-                    'submission_id': submission.id,
-                    'text': (submission.selftext or submission.title)[:100] + '...',
-                    'sentiment': result['sentiment'],
-                    'emotion': result['primary_emotion'],
-                    'confidence': result['confidence'],
-                    'subreddit': submission.subreddit.display_name,
-                    'timestamp': submission.created_utc
-                }
-            }))
 
         except Exception as e:
             print(f"Error processing Reddit submission {submission.id}: {e}")
@@ -162,8 +167,9 @@ def process_news_feeds(feed_urls: List[str]):
         import feedparser
         from newspaper import Article
     except ImportError:
-        print("Required packages not installed. Install with: "
-              "pip install feedparser newspaper3k")
+        print(
+            "Required packages not installed. Install with: " "pip install feedparser newspaper3k"
+        )
         return
 
     from app.services.sentiment_service import SentimentService
@@ -194,14 +200,14 @@ def process_news_feeds(feed_urls: List[str]):
                         user_id=None,  # System analysis
                         text=article.title + " " + article.text[:500],
                         result=result,
-                        source='news_feed'
+                        source="news_feed",
                     )
                     analysis.stream_metadata = {
-                        'feed_url': feed_url,
-                        'article_url': entry.link,
-                        'title': article.title,
-                        'publish_date': getattr(entry, 'published', None),
-                        'source': feed.feed.title if hasattr(feed.feed, 'title') else None
+                        "feed_url": feed_url,
+                        "article_url": entry.link,
+                        "title": article.title,
+                        "publish_date": getattr(entry, "published", None),
+                        "source": feed.feed.title if hasattr(feed.feed, "title") else None,
                     }
 
                     db.session.add(analysis)
@@ -209,20 +215,31 @@ def process_news_feeds(feed_urls: List[str]):
 
                     # Publish to Redis
                     redis_client = redis.Redis.from_url(
-                        os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+                        os.getenv("REDIS_URL", "redis://localhost:6379/0")
                     )
-                    redis_client.publish('sentiment_updates', json.dumps({
-                        'type': 'news_sentiment',
-                        'data': {
-                            'title': article.title,
-                            'text': article.text[:200] + '...' if len(article.text) > 200 else article.text,
-                            'sentiment': result['sentiment'],
-                            'emotion': result['primary_emotion'],
-                            'confidence': result['confidence'],
-                            'source': feed.feed.title if hasattr(feed.feed, 'title') else None,
-                            'url': entry.link
-                        }
-                    }))
+                    redis_client.publish(
+                        "sentiment_updates",
+                        json.dumps(
+                            {
+                                "type": "news_sentiment",
+                                "data": {
+                                    "title": article.title,
+                                    "text": (
+                                        article.text[:200] + "..."
+                                        if len(article.text) > 200
+                                        else article.text
+                                    ),
+                                    "sentiment": result["sentiment"],
+                                    "emotion": result["primary_emotion"],
+                                    "confidence": result["confidence"],
+                                    "source": (
+                                        feed.feed.title if hasattr(feed.feed, "title") else None
+                                    ),
+                                    "url": entry.link,
+                                },
+                            }
+                        ),
+                    )
 
                 except Exception as e:
                     print(f"Error processing article {entry.link}: {e}")
@@ -235,7 +252,7 @@ def process_news_feeds(feed_urls: List[str]):
 @shared_task
 def start_twitter_stream(keywords: List[str], duration_minutes: int = 60):
     """Start Twitter stream in background for specified duration."""
-    bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
+    bearer_token = os.getenv("TWITTER_BEARER_TOKEN")
     if not bearer_token:
         raise ValueError("TWITTER_BEARER_TOKEN environment variable required")
 
@@ -252,6 +269,7 @@ def start_twitter_stream(keywords: List[str], duration_minutes: int = 60):
 
         # Keep stream alive for specified duration
         import time
+
         time.sleep(duration_minutes * 60)
 
     except Exception as e:
@@ -273,9 +291,9 @@ def start_reddit_stream(subreddits: List[str], duration_minutes: int = 60):
         print("PRAW not installed. Install with: pip install praw")
         return
 
-    client_id = os.getenv('REDDIT_CLIENT_ID')
-    client_secret = os.getenv('REDDIT_CLIENT_SECRET')
-    user_agent = os.getenv('REDDIT_USER_AGENT', 'SentimentAnalysisBot/1.0')
+    client_id = os.getenv("REDDIT_CLIENT_ID")
+    client_secret = os.getenv("REDDIT_CLIENT_SECRET")
+    user_agent = os.getenv("REDDIT_USER_AGENT", "SentimentAnalysisBot/1.0")
 
     if not client_id or not client_secret:
         raise ValueError("REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET required")
@@ -286,10 +304,11 @@ def start_reddit_stream(subreddits: List[str], duration_minutes: int = 60):
         print(f"Starting Reddit stream for subreddits: {subreddits}")
 
         # Stream submissions from specified subreddits
-        subreddit_str = '+'.join(subreddits)
+        subreddit_str = "+".join(subreddits)
         subreddit = processor.reddit.subreddit(subreddit_str)
 
         import time
+
         start_time = time.time()
 
         for submission in subreddit.stream.submissions():
@@ -313,10 +332,10 @@ class StreamManager:
         task = start_twitter_stream.delay(keywords, duration_minutes)
         stream_id = f"twitter_{task.id}"
         self.active_streams[stream_id] = {
-            'type': 'twitter',
-            'task_id': task.id,
-            'keywords': keywords,
-            'started_at': datetime.utcnow()
+            "type": "twitter",
+            "task_id": task.id,
+            "keywords": keywords,
+            "started_at": datetime.utcnow(),
         }
         return stream_id
 
@@ -325,10 +344,10 @@ class StreamManager:
         task = start_reddit_stream.delay(subreddits, duration_minutes)
         stream_id = f"reddit_{task.id}"
         self.active_streams[stream_id] = {
-            'type': 'reddit',
-            'task_id': task.id,
-            'subreddits': subreddits,
-            'started_at': datetime.utcnow()
+            "type": "reddit",
+            "task_id": task.id,
+            "subreddits": subreddits,
+            "started_at": datetime.utcnow(),
         }
         return stream_id
 
@@ -337,19 +356,20 @@ class StreamManager:
         task = process_news_feeds.delay(feed_urls)
         stream_id = f"news_{task.id}"
         self.active_streams[stream_id] = {
-            'type': 'news',
-            'task_id': task.id,
-            'feed_urls': feed_urls,
-            'started_at': datetime.utcnow()
+            "type": "news",
+            "task_id": task.id,
+            "feed_urls": feed_urls,
+            "started_at": datetime.utcnow(),
         }
         return stream_id
 
     def stop_stream(self, stream_id: str):
         """Stop a specific stream."""
         if stream_id in self.active_streams:
-            task_id = self.active_streams[stream_id]['task_id']
+            task_id = self.active_streams[stream_id]["task_id"]
             from flask import current_app
-            celery = current_app.extensions['celery']
+
+            celery = current_app.extensions["celery"]
             celery.control.revoke(task_id, terminate=True)
             del self.active_streams[stream_id]
             return True

@@ -14,7 +14,9 @@ class AttentionLayer(nn.Module):
         super().__init__()
         self.attention = nn.Linear(hidden_dim, 1)
 
-    def forward(self, lstm_output: torch.Tensor, mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self, lstm_output: torch.Tensor, mask: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # lstm_output: (batch, seq_len, hidden_dim)
         scores = self.attention(lstm_output).squeeze(-1)  # (batch, seq_len)
 

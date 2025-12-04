@@ -37,12 +37,12 @@ class SentimentAnalysis(db.Model):
         created_at: Timestamp of analysis
     """
 
-    __tablename__ = 'sentiment_analyses'
+    __tablename__ = "sentiment_analyses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     input_text: Mapped[str] = mapped_column(Text, nullable=False)
-    source: Mapped[str] = mapped_column(String(20), nullable=False, default='web')
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="web")
 
     # VADER sentiment scores
     sentiment: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
@@ -60,27 +60,22 @@ class SentimentAnalysis(db.Model):
     processing_time_ms: Mapped[int] = mapped_column(Integer, default=0)
     text_length: Mapped[int] = mapped_column(Integer, default=0)
     word_count: Mapped[int] = mapped_column(Integer, default=0)
-    stream_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSON, nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, index=True
-    )
+    stream_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
-    user = relationship('User', back_populates='analyses')
+    user = relationship("User", back_populates="analyses")
 
     # Composite indexes for common queries
     __table_args__ = (
-        Index('idx_user_sentiment_date', 'user_id', 'sentiment', 'created_at'),
-        Index('idx_user_emotion_date', 'user_id', 'primary_emotion',
-              'created_at'),
-        Index('idx_source_date', 'source', 'created_at'),
+        Index("idx_user_sentiment_date", "user_id", "sentiment", "created_at"),
+        Index("idx_user_emotion_date", "user_id", "primary_emotion", "created_at"),
+        Index("idx_source_date", "source", "created_at"),
     )
 
     def __repr__(self) -> str:
         """String representation of SentimentAnalysis."""
-        return f'<SentimentAnalysis {self.id}: {self.sentiment}>'
+        return f"<SentimentAnalysis {self.id}: {self.sentiment}>"
 
     def to_dict(self, include_text: bool = True) -> dict:
         """Convert analysis to dictionary representation.
@@ -92,32 +87,33 @@ class SentimentAnalysis(db.Model):
             dict: Analysis data dictionary
         """
         data = {
-            'id': self.id,
-            'user_id': self.user_id,
-            'source': self.source,
-            'sentiment': self.sentiment,
-            'compound_score': round(self.compound_score, 4),
-            'scores': {
-                'positive': round(self.positive_score, 4),
-                'negative': round(self.negative_score, 4),
-                'neutral': round(self.neutral_score, 4),
-                'compound': round(self.compound_score, 4)
+            "id": self.id,
+            "user_id": self.user_id,
+            "source": self.source,
+            "sentiment": self.sentiment,
+            "compound_score": round(self.compound_score, 4),
+            "scores": {
+                "positive": round(self.positive_score, 4),
+                "negative": round(self.negative_score, 4),
+                "neutral": round(self.neutral_score, 4),
+                "compound": round(self.compound_score, 4),
             },
-            'primary_emotion': self.primary_emotion,
-            'emotion_scores': self.emotion_scores,
-            'confidence': round(self.confidence, 4) if self.confidence else None,
-            'processing_time_ms': self.processing_time_ms,
-            'text_length': self.text_length,
-            'word_count': self.word_count,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            "primary_emotion": self.primary_emotion,
+            "emotion_scores": self.emotion_scores,
+            "confidence": round(self.confidence, 4) if self.confidence else None,
+            "processing_time_ms": self.processing_time_ms,
+            "text_length": self.text_length,
+            "word_count": self.word_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
         if include_text:
-            data['input_text'] = self.input_text
+            data["input_text"] = self.input_text
         return data
 
     @classmethod
-    def create_from_result(cls, user_id: Optional[int], text: str, result: dict,
-                          source: str = 'web') -> 'SentimentAnalysis':
+    def create_from_result(
+        cls, user_id: Optional[int], text: str, result: dict, source: str = "web"
+    ) -> "SentimentAnalysis":
         """Create a SentimentAnalysis instance from service result.
 
         Args:
@@ -133,17 +129,17 @@ class SentimentAnalysis(db.Model):
             user_id=user_id,
             input_text=text,
             source=source,
-            sentiment=result.get('sentiment', 'neutral'),
-            compound_score=result.get('compound_score', 0.0),
-            positive_score=result.get('scores', {}).get('pos', 0.0),
-            negative_score=result.get('scores', {}).get('neg', 0.0),
-            neutral_score=result.get('scores', {}).get('neu', 0.0),
-            primary_emotion=result.get('primary_emotion'),
-            emotion_scores=result.get('emotion_scores'),
-            confidence=result.get('confidence'),
-            processing_time_ms=result.get('processing_time_ms', 0),
+            sentiment=result.get("sentiment", "neutral"),
+            compound_score=result.get("compound_score", 0.0),
+            positive_score=result.get("scores", {}).get("pos", 0.0),
+            negative_score=result.get("scores", {}).get("neg", 0.0),
+            neutral_score=result.get("scores", {}).get("neu", 0.0),
+            primary_emotion=result.get("primary_emotion"),
+            emotion_scores=result.get("emotion_scores"),
+            confidence=result.get("confidence"),
+            processing_time_ms=result.get("processing_time_ms", 0),
             text_length=len(text),
-            word_count=len(text.split())
+            word_count=len(text.split()),
         )
         return analysis
 
@@ -165,50 +161,53 @@ class SentimentAnalysis(db.Model):
 
         if total == 0:
             return {
-                'total_analyses': 0,
-                'sentiment_distribution': {
-                    'positive': 0, 'negative': 0, 'neutral': 0
-                },
-                'emotion_distribution': {},
-                'average_confidence': 0,
-                'average_processing_time_ms': 0
+                "total_analyses": 0,
+                "sentiment_distribution": {"positive": 0, "negative": 0, "neutral": 0},
+                "emotion_distribution": {},
+                "average_confidence": 0,
+                "average_processing_time_ms": 0,
             }
 
         # Sentiment distribution
-        sentiment_counts = db.session.query(
-            SentimentAnalysis.sentiment,
-            func.count(SentimentAnalysis.id)
-        ).filter_by(user_id=user_id).group_by(
-            SentimentAnalysis.sentiment
-        ).all()
+        sentiment_counts = (
+            db.session.query(SentimentAnalysis.sentiment, func.count(SentimentAnalysis.id))
+            .filter_by(user_id=user_id)
+            .group_by(SentimentAnalysis.sentiment)
+            .all()
+        )
 
         sentiment_dist = {s: c for s, c in sentiment_counts}
 
         # Emotion distribution
-        emotion_counts = db.session.query(
-            SentimentAnalysis.primary_emotion,
-            func.count(SentimentAnalysis.id)
-        ).filter(
-            SentimentAnalysis.user_id == user_id,
-            SentimentAnalysis.primary_emotion.isnot(None)
-        ).group_by(SentimentAnalysis.primary_emotion).all()
+        emotion_counts = (
+            db.session.query(SentimentAnalysis.primary_emotion, func.count(SentimentAnalysis.id))
+            .filter(
+                SentimentAnalysis.user_id == user_id, SentimentAnalysis.primary_emotion.isnot(None)
+            )
+            .group_by(SentimentAnalysis.primary_emotion)
+            .all()
+        )
 
         emotion_dist = {e: c for e, c in emotion_counts if e}
 
         # Averages
-        averages = db.session.query(
-            func.avg(SentimentAnalysis.confidence),
-            func.avg(SentimentAnalysis.processing_time_ms)
-        ).filter_by(user_id=user_id).first()
+        averages = (
+            db.session.query(
+                func.avg(SentimentAnalysis.confidence),
+                func.avg(SentimentAnalysis.processing_time_ms),
+            )
+            .filter_by(user_id=user_id)
+            .first()
+        )
 
         return {
-            'total_analyses': total,
-            'sentiment_distribution': {
-                'positive': sentiment_dist.get('positive', 0),
-                'negative': sentiment_dist.get('negative', 0),
-                'neutral': sentiment_dist.get('neutral', 0)
+            "total_analyses": total,
+            "sentiment_distribution": {
+                "positive": sentiment_dist.get("positive", 0),
+                "negative": sentiment_dist.get("negative", 0),
+                "neutral": sentiment_dist.get("neutral", 0),
             },
-            'emotion_distribution': emotion_dist,
-            'average_confidence': round(averages[0] or 0, 4),
-            'average_processing_time_ms': round(averages[1] or 0, 2)
+            "emotion_distribution": emotion_dist,
+            "average_confidence": round(averages[0] or 0, 4),
+            "average_processing_time_ms": round(averages[1] or 0, 2),
         }
