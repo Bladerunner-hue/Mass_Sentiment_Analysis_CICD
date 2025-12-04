@@ -16,7 +16,7 @@ def test_streaming_infrastructure():
     print("Testing streaming infrastructure...")
 
     # Create Flask app
-    app = create_app('testing')
+    app = create_app("testing")
 
     with app.app_context():
         # Test sentiment service
@@ -32,11 +32,9 @@ def test_streaming_infrastructure():
 
         # Test analysis creation
         from app.models.analysis import SentimentAnalysis
+
         analysis = SentimentAnalysis.create_from_result(
-            user_id=None,
-            text=test_text,
-            result=result,
-            source='test'
+            user_id=None, text=test_text, result=result, source="test"
         )
 
         print(f"✓ Analysis creation works: {analysis.sentiment}")
@@ -44,5 +42,5 @@ def test_streaming_infrastructure():
         print("All streaming infrastructure tests passed!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_streaming_infrastructure()

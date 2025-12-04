@@ -31,7 +31,9 @@ class DataMerger:
 
     def load(self) -> pd.DataFrame:
         static_df = self._read_all(self.static_root)
-        streaming_df = self._read_all(self.streaming_root) if self.streaming_root else pd.DataFrame()
+        streaming_df = (
+            self._read_all(self.streaming_root) if self.streaming_root else pd.DataFrame()
+        )
         combined = pd.concat([static_df, streaming_df], ignore_index=True)
         # Minimal cleaning/dedup
         combined["text"] = combined["text"].astype(str).str.strip()
@@ -60,7 +62,9 @@ class DataMerger:
             pd.concat(test, ignore_index=True) if test else pd.DataFrame(),
         )
 
-    def save_splits(self, train_df: pd.DataFrame, val_df: pd.DataFrame, test_df: pd.DataFrame, out_root: Path):
+    def save_splits(
+        self, train_df: pd.DataFrame, val_df: pd.DataFrame, test_df: pd.DataFrame, out_root: Path
+    ):
         out_root = Path(out_root)
         for split, df in (("train", train_df), ("val", val_df), ("test", test_df)):
             if df.empty:

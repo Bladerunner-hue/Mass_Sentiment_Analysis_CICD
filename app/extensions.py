@@ -23,9 +23,9 @@ migrate = Migrate()
 
 # Flask-Login for session-based authentication
 login_manager = LoginManager()
-login_manager.login_view = 'auth.login'
-login_manager.login_message = 'Please log in to access this page.'
-login_manager.login_message_category = 'info'
+login_manager.login_view = "auth.login"
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "info"
 
 # Flask-JWT-Extended for API token authentication
 jwt = JWTManager()
@@ -34,10 +34,7 @@ jwt = JWTManager()
 cache = Cache()
 
 # Flask-Limiter for rate limiting
-limiter = Limiter(
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
-)
+limiter = Limiter(key_func=get_remote_address, default_limits=["200 per day", "50 per hour"])
 
 # CSRF protection
 csrf = CSRFProtect()
@@ -52,6 +49,7 @@ def celery_init_app(app):
     Returns:
         Celery: Configured Celery application
     """
+
     class FlaskTask(Celery.Task):
         """Custom Task class that runs within Flask app context."""
 
@@ -62,24 +60,26 @@ def celery_init_app(app):
     celery_app = Celery(app.name)
 
     # Configure Celery from Flask config
-    celery_app.config_from_object({
-        'broker_url': app.config.get('CELERY_BROKER_URL', 'redis://localhost:6379/0'),
-        'result_backend': app.config.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0'),
-        'task_serializer': app.config.get('CELERY_TASK_SERIALIZER', 'json'),
-        'result_serializer': app.config.get('CELERY_RESULT_SERIALIZER', 'json'),
-        'accept_content': app.config.get('CELERY_ACCEPT_CONTENT', ['json']),
-        'timezone': app.config.get('CELERY_TIMEZONE', 'UTC'),
-        'task_track_started': app.config.get('CELERY_TASK_TRACK_STARTED', True),
-        'task_time_limit': app.config.get('CELERY_TASK_TIME_LIMIT', 600),
-        'task_always_eager': app.config.get('CELERY_TASK_ALWAYS_EAGER', False),
-        'task_eager_propagates': app.config.get('CELERY_TASK_EAGER_PROPAGATES', False),
-    })
+    celery_app.config_from_object(
+        {
+            "broker_url": app.config.get("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+            "result_backend": app.config.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0"),
+            "task_serializer": app.config.get("CELERY_TASK_SERIALIZER", "json"),
+            "result_serializer": app.config.get("CELERY_RESULT_SERIALIZER", "json"),
+            "accept_content": app.config.get("CELERY_ACCEPT_CONTENT", ["json"]),
+            "timezone": app.config.get("CELERY_TIMEZONE", "UTC"),
+            "task_track_started": app.config.get("CELERY_TASK_TRACK_STARTED", True),
+            "task_time_limit": app.config.get("CELERY_TASK_TIME_LIMIT", 600),
+            "task_always_eager": app.config.get("CELERY_TASK_ALWAYS_EAGER", False),
+            "task_eager_propagates": app.config.get("CELERY_TASK_EAGER_PROPAGATES", False),
+        }
+    )
 
     celery_app.Task = FlaskTask
     celery_app.set_default()
 
     # Store celery instance in app extensions
-    app.extensions['celery'] = celery_app
+    app.extensions["celery"] = celery_app
 
     return celery_app
 
@@ -95,6 +95,7 @@ def load_user(user_id):
         User instance or None
     """
     from app.models.user import User
+
     return User.query.get(int(user_id))
 
 
@@ -108,7 +109,7 @@ def user_identity_lookup(user):
     Returns:
         int: User ID
     """
-    if hasattr(user, 'id'):
+    if hasattr(user, "id"):
         return user.id
     return user
 
@@ -125,7 +126,8 @@ def user_lookup_callback(_jwt_header, jwt_data):
         User instance or None
     """
     from app.models.user import User
-    identity = jwt_data['sub']
+
+    identity = jwt_data["sub"]
     return User.query.get(identity)
 
 
@@ -140,10 +142,7 @@ def expired_token_callback(jwt_header, jwt_payload):
     Returns:
         tuple: JSON response and status code
     """
-    return {
-        'message': 'Token has expired',
-        'error': 'token_expired'
-    }, 401
+    return {"message": "Token has expired", "error": "token_expired"}, 401
 
 
 @jwt.invalid_token_loader
@@ -156,10 +155,7 @@ def invalid_token_callback(error):
     Returns:
         tuple: JSON response and status code
     """
-    return {
-        'message': 'Invalid token',
-        'error': 'invalid_token'
-    }, 401
+    return {"message": "Invalid token", "error": "invalid_token"}, 401
 
 
 @jwt.unauthorized_loader
@@ -172,7 +168,4 @@ def missing_token_callback(error):
     Returns:
         tuple: JSON response and status code
     """
-    return {
-        'message': 'Authorization token required',
-        'error': 'authorization_required'
-    }, 401
+    return {"message": "Authorization token required", "error": "authorization_required"}, 401

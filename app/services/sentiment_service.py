@@ -19,6 +19,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 try:
     import psutil
+
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
@@ -46,21 +47,27 @@ class SentimentService:
     """
 
     # Emotion labels from j-hartmann/emotion-english-distilroberta-base
-    EMOTIONS = ['anger', 'disgust', 'fear', 'joy', 'neutral', 'sadness', 'surprise']
+    EMOTIONS = ["anger", "disgust", "fear", "joy", "neutral", "sadness", "surprise"]
 
     # VADER threshold for sentiment classification
     POSITIVE_THRESHOLD = 0.05
     NEGATIVE_THRESHOLD = -0.05
 
     # Precompiled regex patterns for faster preprocessing
-    URL_PATTERN = re.compile(r'http\S+|www\.\S+')
-    HTML_PATTERN = re.compile(r'<[^>]+>')
-    WHITESPACE_PATTERN = re.compile(r'\s+')
+    URL_PATTERN = re.compile(r"http\S+|www\.\S+")
+    HTML_PATTERN = re.compile(r"<[^>]+>")
+    WHITESPACE_PATTERN = re.compile(r"\s+")
 
-    def __init__(self, model_name: str = None, cache_dir: str = None,
-                 max_workers: int = 4, memory_threshold: float = 0.8,
-                 cache_enabled: bool = True, cache_ttl: int = 86400,
-                 redis_url: Optional[str] = None):
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        cache_dir: Optional[str] = None,
+        max_workers: int = 4,
+        memory_threshold: float = 0.8,
+        cache_enabled: bool = True,
+        cache_ttl: int = 86400,
+        redis_url: Optional[str] = None,
+    ):
         """Initialize the sentiment service.
 
         Args:
@@ -71,17 +78,17 @@ class SentimentService:
             memory_threshold: Memory usage threshold for cleanup (0-1)
         """
         self.vader = SentimentIntensityAnalyzer()
-        self.model_name = model_name or 'j-hartmann/emotion-english-distilroberta-base'
-        self.cache_dir = cache_dir or os.path.join(os.getcwd(), '.model_cache')
+        self.model_name = model_name or "j-hartmann/emotion-english-distilroberta-base"
+        self.cache_dir = cache_dir or os.path.join(os.getcwd(), ".model_cache")
 
         # Ensure cache directory exists
         os.makedirs(self.cache_dir, exist_ok=True)
 
         # Lazy loaded components
-        self._emotion_pipeline = None
+        self._emotion_pipeline: Any = None
         self._pipeline_lock = threading.Lock()
-        self._device = None
-        self._custom_service = None
+        self._device: Optional[int] = None
+        self._custom_service: Any = None
         self._custom_lock = threading.Lock()
 
         # Check if custom model is available
@@ -104,18 +111,20 @@ class SentimentService:
         Returns:
             int: Device ID (0 for GPU, -1 for CPU)
         """
-        if self._device is None:
-            try:
-                import torch
-                self._device = 0 if torch.cuda.is_available() else -1
-            except ImportError:
-                self._device = -1
+        if self._device is not None:
+            return self._device
+        try:
+            import torch
+
+            self._device = 0 if torch.cuda.is_available() else -1
+        except ImportError:
+            self._device = -1
         return self._device
 
     def _check_custom_model_available(self) -> bool:
         """Check if custom BiLSTM + Attention model should be used (environment variables set)."""
-        model_path = os.getenv('CUSTOM_MODEL_PATH')
-        tokenizer_path = os.getenv('CUSTOM_TOKENIZER_PATH')
+        model_path = os.getenv("CUSTOM_MODEL_PATH")
+        tokenizer_path = os.getenv("CUSTOM_TOKENIZER_PATH")
         # Custom model is considered available if environment variables are set
         # (will attempt to load and fall back to transformer if loading fails)
         return bool(model_path and tokenizer_path)
@@ -132,6 +141,7 @@ class SentimentService:
 
             try:
                 from app.services.custom_sentiment_service import CustomSentimentService
+
                 self._custom_service = CustomSentimentService()
             except Exception:
                 # If custom service fails to load, disable it
@@ -160,6 +170,7 @@ class SentimentService:
                 return
 
             from transformers import pipeline
+
             torch_dtype = None
             model_kwargs = {}
 
@@ -171,10 +182,11 @@ class SentimentService:
                     torch_dtype = torch.float16
 
                     # Enable 8-bit loading when bitsandbytes is available
-                    if os.getenv('ENABLE_INT8', '1') != '0':
+                    if os.getenv("ENABLE_INT8", "1") != "0":
                         try:
                             import bitsandbytes  # noqa: F401
-                            model_kwargs['load_in_8bit'] = True
+
+                            model_kwargs["load_in_8bit"] = True
                         except Exception:
                             # Fall back silently if bitsandbytes is not present
                             pass
@@ -184,8 +196,8 @@ class SentimentService:
                 torch_dtype = None
 
             # Set cache directory for model downloads
-            os.environ['TRANSFORMERS_CACHE'] = self.cache_dir
-            os.environ['HF_HOME'] = self.cache_dir
+            os.environ["TRANSFORMERS_CACHE"] = self.cache_dir
+            os.environ["HF_HOME"] = self.cache_dir
 
             self._emotion_pipeline = pipeline(
                 "text-classification",
@@ -195,7 +207,7 @@ class SentimentService:
                 truncation=True,
                 max_length=512,
                 torch_dtype=torch_dtype,
-                model_kwargs=model_kwargs
+                model_kwargs=model_kwargs,
             )
 
     @property
@@ -221,7 +233,7 @@ class SentimentService:
                 return target
 
             properties = torch.cuda.get_device_properties(0)
-            total_mem = getattr(properties, 'total_memory', 0)
+            total_mem = getattr(properties, "total_memory", 0)
             used_mem = torch.cuda.memory_allocated(0)
             free_mem = max(0, total_mem - used_mem)
 
@@ -242,15 +254,15 @@ class SentimentService:
         try:
             from redis import Redis  # Local import to avoid hard dependency at import time
 
-            url = redis_url or os.getenv('REDIS_URL')
+            url = redis_url or os.getenv("REDIS_URL")
             if url:
                 self.redis_client = Redis.from_url(url, decode_responses=True)
             else:
                 self.redis_client = Redis(
-                    host=os.getenv('REDIS_HOST', 'localhost'),
-                    port=int(os.getenv('REDIS_PORT', 6379)),
-                    db=int(os.getenv('REDIS_DB', 0)),
-                    decode_responses=True
+                    host=os.getenv("REDIS_HOST", "localhost"),
+                    port=int(os.getenv("REDIS_PORT", 6379)),
+                    db=int(os.getenv("REDIS_DB", 0)),
+                    decode_responses=True,
                 )
         except Exception:
             self.cache_enabled = False
@@ -258,7 +270,7 @@ class SentimentService:
 
     def _get_cache_key(self, text: str, analysis_type: str) -> str:
         """Generate a stable cache key for a text/analysis combination."""
-        text_hash = hashlib.md5(text.encode('utf-8')).hexdigest()
+        text_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
         return f"sentiment:{analysis_type}:{text_hash}"
 
     def _get_cached_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
@@ -300,13 +312,13 @@ class SentimentService:
         text = str(text)
 
         # Remove URLs
-        text = self.URL_PATTERN.sub('', text)
+        text = self.URL_PATTERN.sub("", text)
 
         # Remove HTML tags
-        text = self.HTML_PATTERN.sub('', text)
+        text = self.HTML_PATTERN.sub("", text)
 
         # Normalize whitespace
-        text = self.WHITESPACE_PATTERN.sub(' ', text)
+        text = self.WHITESPACE_PATTERN.sub(" ", text)
 
         # Limit length to prevent memory issues
         max_length = 5000
@@ -325,11 +337,11 @@ class SentimentService:
             str: Sentiment label (positive/negative/neutral)
         """
         if compound >= self.POSITIVE_THRESHOLD:
-            return 'positive'
+            return "positive"
         elif compound <= self.NEGATIVE_THRESHOLD:
-            return 'negative'
+            return "negative"
         else:
-            return 'neutral'
+            return "neutral"
 
     def analyze_quick(self, text: str) -> Dict[str, Any]:
         """Perform quick VADER sentiment analysis.
@@ -353,11 +365,11 @@ class SentimentService:
 
         if not cleaned_text:
             return {
-                'sentiment': 'neutral',
-                'confidence': 0.0,
-                'compound_score': 0.0,
-                'scores': {'pos': 0.0, 'neg': 0.0, 'neu': 1.0, 'compound': 0.0},
-                'processing_time_ms': 0
+                "sentiment": "neutral",
+                "confidence": 0.0,
+                "compound_score": 0.0,
+                "scores": {"pos": 0.0, "neg": 0.0, "neu": 1.0, "compound": 0.0},
+                "processing_time_ms": 0,
             }
 
         scores = self.vader.polarity_scores(cleaned_text)
@@ -365,11 +377,11 @@ class SentimentService:
         processing_time = int((time.time() - start_time) * 1000)
 
         return {
-            'sentiment': self._compound_to_label(scores['compound']),
-            'confidence': abs(scores['compound']),
-            'compound_score': scores['compound'],
-            'scores': scores,
-            'processing_time_ms': processing_time
+            "sentiment": self._compound_to_label(scores["compound"]),
+            "confidence": abs(scores["compound"]),
+            "compound_score": scores["compound"],
+            "scores": scores,
+            "processing_time_ms": processing_time,
         }
 
     def analyze_emotions(self, text: str) -> Dict[str, Any]:
@@ -395,19 +407,19 @@ class SentimentService:
         cache_key = None
 
         if self.cache_enabled and cleaned_text:
-            cache_key = self._get_cache_key(cleaned_text, 'emotions')
+            cache_key = self._get_cache_key(cleaned_text, "emotions")
             cached_result = self._get_cached_result(cache_key)
             if cached_result is not None:
                 return cached_result
 
         if not cleaned_text:
             default_scores = {e: 0.0 for e in self.EMOTIONS}
-            default_scores['neutral'] = 1.0
+            default_scores["neutral"] = 1.0
             return {
-                'primary_emotion': 'neutral',
-                'confidence': 1.0,
-                'emotion_scores': default_scores,
-                'processing_time_ms': 0
+                "primary_emotion": "neutral",
+                "confidence": 1.0,
+                "emotion_scores": default_scores,
+                "processing_time_ms": 0,
             }
 
         # Use custom model as primary (always try first)
@@ -419,10 +431,10 @@ class SentimentService:
 
                     # Format result to match expected interface
                     custom_result = {
-                        'primary_emotion': result.get('primary_emotion', 'neutral'),
-                        'confidence': result.get('confidence', 0.0),
-                        'emotion_scores': result.get('emotion_scores', {}),
-                        'processing_time_ms': processing_time
+                        "primary_emotion": result.get("primary_emotion", "neutral"),
+                        "confidence": result.get("confidence", 0.0),
+                        "emotion_scores": result.get("emotion_scores", {}),
+                        "processing_time_ms": processing_time,
                     }
 
                     if cache_key:
@@ -437,16 +449,16 @@ class SentimentService:
         results = self.emotion_pipeline(cleaned_text)[0]
 
         # Convert to dict and find primary emotion
-        emotion_scores = {r['label']: r['score'] for r in results}
-        primary = max(results, key=lambda x: x['score'])
+        emotion_scores = {r["label"]: r["score"] for r in results}
+        primary = max(results, key=lambda x: x["score"])
 
         processing_time = int((time.time() - start_time) * 1000)
 
         result = {
-            'primary_emotion': primary['label'],
-            'confidence': primary['score'],
-            'emotion_scores': emotion_scores,
-            'processing_time_ms': processing_time
+            "primary_emotion": primary["label"],
+            "confidence": primary["score"],
+            "emotion_scores": emotion_scores,
+            "processing_time_ms": processing_time,
         }
 
         if cache_key:
@@ -472,7 +484,7 @@ class SentimentService:
         cache_key = None
 
         if self.cache_enabled and cleaned_text:
-            cache_key = self._get_cache_key(cleaned_text, 'full')
+            cache_key = self._get_cache_key(cleaned_text, "full")
             cached_result = self._get_cached_result(cache_key)
             if cached_result is not None:
                 return cached_result
@@ -485,15 +497,17 @@ class SentimentService:
                     total_time = int((time.time() - start_time) * 1000)
 
                     result = {
-                        'text': cleaned_text[:200] + '...' if len(cleaned_text) > 200 else cleaned_text,
-                        'sentiment': custom_result.get('sentiment', 'neutral'),
-                        'compound_score': custom_result.get('compound_score', 0.0),
-                        'scores': custom_result.get('scores', {}),
-                        'primary_emotion': custom_result.get('primary_emotion', 'neutral'),
-                        'confidence': custom_result.get('confidence', 0.0),
-                        'emotion_scores': custom_result.get('emotion_scores', {}),
-                        'processing_time_ms': total_time,
-                        'model_used': 'custom_bilstm_attention'
+                        "text": (
+                            cleaned_text[:200] + "..." if len(cleaned_text) > 200 else cleaned_text
+                        ),
+                        "sentiment": custom_result.get("sentiment", "neutral"),
+                        "compound_score": custom_result.get("compound_score", 0.0),
+                        "scores": custom_result.get("scores", {}),
+                        "primary_emotion": custom_result.get("primary_emotion", "neutral"),
+                        "confidence": custom_result.get("confidence", 0.0),
+                        "emotion_scores": custom_result.get("emotion_scores", {}),
+                        "processing_time_ms": total_time,
+                        "model_used": "custom_bilstm_attention",
                     }
 
                     if cache_key:
@@ -513,15 +527,15 @@ class SentimentService:
         total_time = int((time.time() - start_time) * 1000)
 
         result = {
-            'text': cleaned_text[:200] + '...' if len(cleaned_text) > 200 else cleaned_text,
-            'sentiment': quick_result['sentiment'],
-            'compound_score': quick_result['compound_score'],
-            'scores': quick_result['scores'],
-            'primary_emotion': emotion_result['primary_emotion'],
-            'confidence': emotion_result['confidence'],
-            'emotion_scores': emotion_result['emotion_scores'],
-            'processing_time_ms': total_time,
-            'model_used': 'vader_transformer'
+            "text": cleaned_text[:200] + "..." if len(cleaned_text) > 200 else cleaned_text,
+            "sentiment": quick_result["sentiment"],
+            "compound_score": quick_result["compound_score"],
+            "scores": quick_result["scores"],
+            "primary_emotion": emotion_result["primary_emotion"],
+            "confidence": emotion_result["confidence"],
+            "emotion_scores": emotion_result["emotion_scores"],
+            "processing_time_ms": total_time,
+            "model_used": "vader_transformer",
         }
 
         if cache_key:
@@ -534,7 +548,7 @@ class SentimentService:
         texts: List[str],
         batch_size: int = 32,
         include_emotions: bool = True,
-        progress_callback: Optional[Callable[[int, int], None]] = None
+        progress_callback: Optional[Callable[[int, int], None]] = None,
     ) -> List[Dict[str, Any]]:
         """Efficiently analyze multiple texts in batches.
 
@@ -564,17 +578,21 @@ class SentimentService:
         for i, text in enumerate(cleaned_texts):
             if text:
                 scores = self.vader.polarity_scores(text)
-                vader_results.append({
-                    'sentiment': self._compound_to_label(scores['compound']),
-                    'compound_score': scores['compound'],
-                    'scores': scores
-                })
+                vader_results.append(
+                    {
+                        "sentiment": self._compound_to_label(scores["compound"]),
+                        "compound_score": scores["compound"],
+                        "scores": scores,
+                    }
+                )
             else:
-                vader_results.append({
-                    'sentiment': 'neutral',
-                    'compound_score': 0.0,
-                    'scores': {'pos': 0.0, 'neg': 0.0, 'neu': 1.0, 'compound': 0.0}
-                })
+                vader_results.append(
+                    {
+                        "sentiment": "neutral",
+                        "compound_score": 0.0,
+                        "scores": {"pos": 0.0, "neg": 0.0, "neu": 1.0, "compound": 0.0},
+                    }
+                )
 
         # Emotion analysis in batches (if requested)
         emotion_results = []
@@ -589,7 +607,7 @@ class SentimentService:
             # Process in batches
             batch_predictions = []
             for i in range(0, len(non_empty_texts), effective_batch_size):
-                batch = non_empty_texts[i:i + effective_batch_size]
+                batch = non_empty_texts[i : i + effective_batch_size]
                 batch_results = self.emotion_pipeline(batch)
                 batch_predictions.extend(batch_results)
 
@@ -600,21 +618,21 @@ class SentimentService:
             # Map results back to original indices
             emotion_map = {}
             for idx, pred in zip(non_empty_indices, batch_predictions):
-                emotion_scores = {r['label']: r['score'] for r in pred}
-                primary = max(pred, key=lambda x: x['score'])
+                emotion_scores = {r["label"]: r["score"] for r in pred}
+                primary = max(pred, key=lambda x: x["score"])
                 emotion_map[idx] = {
-                    'primary_emotion': primary['label'],
-                    'confidence': primary['score'],
-                    'emotion_scores': emotion_scores
+                    "primary_emotion": primary["label"],
+                    "confidence": primary["score"],
+                    "emotion_scores": emotion_scores,
                 }
 
             # Fill in results for all texts
             default_emotion = {
-                'primary_emotion': 'neutral',
-                'confidence': 1.0,
-                'emotion_scores': {e: 0.0 for e in self.EMOTIONS}
+                "primary_emotion": "neutral",
+                "confidence": 1.0,
+                "emotion_scores": {e: 0.0 for e in self.EMOTIONS},
             }
-            default_emotion['emotion_scores']['neutral'] = 1.0
+            default_emotion["emotion_scores"]["neutral"] = 1.0
 
             for i in range(total):
                 emotion_results.append(emotion_map.get(i, default_emotion))
@@ -625,16 +643,16 @@ class SentimentService:
         # Combine results
         for i in range(total):
             result = {
-                'index': i,
-                'sentiment': vader_results[i]['sentiment'],
-                'compound_score': vader_results[i]['compound_score'],
-                'scores': vader_results[i]['scores']
+                "index": i,
+                "sentiment": vader_results[i]["sentiment"],
+                "compound_score": vader_results[i]["compound_score"],
+                "scores": vader_results[i]["scores"],
             }
 
             if emotion_results[i]:
-                result['primary_emotion'] = emotion_results[i]['primary_emotion']
-                result['confidence'] = emotion_results[i]['confidence']
-                result['emotion_scores'] = emotion_results[i]['emotion_scores']
+                result["primary_emotion"] = emotion_results[i]["primary_emotion"]
+                result["confidence"] = emotion_results[i]["confidence"]
+                result["emotion_scores"] = emotion_results[i]["emotion_scores"]
 
             results.append(result)
 
@@ -656,16 +674,16 @@ class SentimentService:
 
     def _cleanup_memory(self):
         """Force garbage collection and memory cleanup."""
-        if hasattr(self, '_emotion_pipeline') and self._emotion_pipeline:
+        if hasattr(self, "_emotion_pipeline") and self._emotion_pipeline:
             # Clear any cached computations
-            if hasattr(self._emotion_pipeline.model, 'cache'):
+            if hasattr(self._emotion_pipeline.model, "cache"):
                 self._emotion_pipeline.model.cache.clear()
 
         gc.collect()
 
-    def analyze_batch_parallel(self, texts: List[str],
-                              include_emotions: bool = True,
-                              batch_size: int = 16) -> List[Dict[str, Any]]:
+    def analyze_batch_parallel(
+        self, texts: List[str], include_emotions: bool = True, batch_size: int = 16
+    ) -> List[Dict[str, Any]]:
         """Analyze texts using parallel processing for better performance.
 
         Args:
@@ -681,8 +699,7 @@ class SentimentService:
 
         # Split texts into chunks for parallel processing
         chunk_size = max(1, len(texts) // self.max_workers)
-        text_chunks = [texts[i:i + chunk_size]
-                      for i in range(0, len(texts), chunk_size)]
+        text_chunks = [texts[i : i + chunk_size] for i in range(0, len(texts), chunk_size)]
 
         results = [None] * len(texts)
         futures = []
@@ -691,8 +708,7 @@ class SentimentService:
         for i, chunk in enumerate(text_chunks):
             start_idx = i * chunk_size
             future = self.executor.submit(
-                self._process_chunk,
-                chunk, start_idx, include_emotions, batch_size
+                self._process_chunk, chunk, start_idx, include_emotions, batch_size
             )
             futures.append((future, start_idx))
 
@@ -707,9 +723,9 @@ class SentimentService:
                 chunk_len = len(text_chunks[futures.index((future, start_idx))])
                 for i in range(chunk_len):
                     results[start_idx + i] = {
-                        'error': str(e),
-                        'sentiment': 'neutral',
-                        'compound_score': 0.0
+                        "error": str(e),
+                        "sentiment": "neutral",
+                        "compound_score": 0.0,
                     }
 
         # Memory cleanup
@@ -718,8 +734,9 @@ class SentimentService:
 
         return results
 
-    def _process_chunk(self, texts: List[str], start_idx: int,
-                      include_emotions: bool, batch_size: int) -> List[Dict[str, Any]]:
+    def _process_chunk(
+        self, texts: List[str], start_idx: int, include_emotions: bool, batch_size: int
+    ) -> List[Dict[str, Any]]:
         """Process a chunk of texts.
 
         Args:
@@ -731,11 +748,7 @@ class SentimentService:
         Returns:
             List of results for this chunk
         """
-        return self.batch_analyze(
-            texts,
-            batch_size=batch_size,
-            include_emotions=include_emotions
-        )
+        return self.batch_analyze(texts, batch_size=batch_size, include_emotions=include_emotions)
 
     def get_model_info(self) -> Dict[str, Any]:
         """Get information about loaded models.
@@ -744,8 +757,8 @@ class SentimentService:
             dict: Model information including device and status
         """
         return {
-            'vader': 'loaded',
-            'emotion_model': self.model_name,
-            'emotion_model_loaded': self._emotion_pipeline is not None,
-            'device': 'cuda' if self._get_device() == 0 else 'cpu'
+            "vader": "loaded",
+            "emotion_model": self.model_name,
+            "emotion_model_loaded": self._emotion_pipeline is not None,
+            "device": "cuda" if self._get_device() == 0 else "cpu",
         }

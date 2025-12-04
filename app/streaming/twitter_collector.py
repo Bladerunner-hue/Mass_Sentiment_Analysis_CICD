@@ -6,7 +6,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -28,9 +28,9 @@ class TwitterStreamCollector:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.flush_interval = flush_interval
         self.buffer_limit = buffer_limit
-        self.buffer = queue.Queue(maxsize=buffer_limit)
+        self.buffer: queue.Queue[Dict[str, Any]] = queue.Queue(maxsize=buffer_limit)
         self._stop_event = threading.Event()
-        self._listener = None
+        self._listener: Optional[Any] = None
 
     def _make_partition_path(self) -> Path:
         now = datetime.utcnow()

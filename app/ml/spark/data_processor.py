@@ -14,7 +14,9 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--raw", default="data/raw", help="Root path containing raw Parquet files")
-    parser.add_argument("--processed", default="data/processed", help="Output root for processed data")
+    parser.add_argument(
+        "--processed", default="data/processed", help="Output root for processed data"
+    )
     args = parser.parse_args()
 
     try:

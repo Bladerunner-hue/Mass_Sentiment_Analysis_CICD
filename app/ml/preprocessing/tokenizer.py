@@ -86,7 +86,9 @@ class CustomTokenizer:
                 }
             )
 
-        self._punct_table = str.maketrans({p: " " for p in string.punctuation if p not in {"!", "?", "."}})
+        self._punct_table = str.maketrans(
+            {p: " " for p in string.punctuation if p not in {"!", "?", "."}}
+        )
 
     def clean_text(self, text: str) -> str:
         text = text or ""
@@ -106,7 +108,7 @@ class CustomTokenizer:
         return tokens
 
     def build_vocab(self, texts: List[str]) -> None:
-        counts = Counter()
+        counts: Counter[str] = Counter()
         for text in texts:
             counts.update(self.tokenize(text))
 

@@ -13,8 +13,7 @@ from app.services.batch_service import BatchService
 
 
 @shared_task(bind=True, max_retries=3)
-def process_batch_file(self, batch_job_id: int, file_path: str,
-                       include_emotions: bool = True):
+def process_batch_file(self, batch_job_id: int, file_path: str, include_emotions: bool = True):
     """Process a batch CSV file for sentiment analysis.
 
     This task runs in the background and updates progress via Celery
@@ -29,7 +28,7 @@ def process_batch_file(self, batch_job_id: int, file_path: str,
     batch_job = BatchJob.query.get(batch_job_id)
 
     if not batch_job:
-        return {'error': 'Batch job not found'}
+        return {"error": "Batch job not found"}
 
     try:
         # Initialize services
@@ -47,7 +46,7 @@ def process_batch_file(self, batch_job_id: int, file_path: str,
                 break
 
         if not text_column:
-            raise ValueError('No valid text column found in CSV')
+            raise ValueError("No valid text column found in CSV")
 
         total_records = len(df)
         batch_job.total_records = total_records
@@ -55,12 +54,7 @@ def process_batch_file(self, batch_job_id: int, file_path: str,
         db.session.commit()
 
         # Initialize statistics
-        stats = {
-            'positive': 0,
-            'negative': 0,
-            'neutral': 0,
-            'emotions': {}
-        }
+        stats = {"positive": 0, "negative": 0, "neutral": 0, "emotions": {}}
 
         def progress_callback(processed, total, current_stats):
             """Update progress in Celery task state and database."""
@@ -68,23 +62,23 @@ def process_batch_file(self, batch_job_id: int, file_path: str,
 
             # Update Celery task state for SSE streaming
             self.update_state(
-                state='PROGRESS',
+                state="PROGRESS",
                 meta={
-                    'progress': progress_percent,
-                    'processed': processed,
-                    'total': total,
-                    'stats': current_stats
-                }
+                    "progress": progress_percent,
+                    "processed": processed,
+                    "total": total,
+                    "stats": current_stats,
+                },
             )
 
             # Update database periodically (every 5%)
             if processed % max(1, total // 20) == 0 or processed == total:
                 batch_job.update_progress(
                     processed=processed,
-                    positive=current_stats.get('positive', 0),
-                    negative=current_stats.get('negative', 0),
-                    neutral=current_stats.get('neutral', 0),
-                    emotion_counts=current_stats.get('emotions', {})
+                    positive=current_stats.get("positive", 0),
+                    negative=current_stats.get("negative", 0),
+                    neutral=current_stats.get("neutral", 0),
+                    emotion_counts=current_stats.get("emotions", {}),
                 )
                 db.session.commit()
 
@@ -94,12 +88,12 @@ def process_batch_file(self, batch_job_id: int, file_path: str,
             text_column,
             include_emotions=include_emotions,
             batch_size=32,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
         )
 
         # Generate output file path
         base, ext = os.path.splitext(file_path)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = f"{base}_results_{timestamp}{ext}"
 
         # Save results
@@ -111,20 +105,20 @@ def process_batch_file(self, batch_job_id: int, file_path: str,
         # Mark job as completed
         batch_job.update_progress(
             processed=total_records,
-            positive=int((result_df['Sentiment'] == 'positive').sum()),
-            negative=int((result_df['Sentiment'] == 'negative').sum()),
-            neutral=int((result_df['Sentiment'] == 'neutral').sum()),
-            emotion_counts=final_stats.get('emotion_distribution', {})
+            positive=int((result_df["Sentiment"] == "positive").sum()),
+            negative=int((result_df["Sentiment"] == "negative").sum()),
+            neutral=int((result_df["Sentiment"] == "neutral").sum()),
+            emotion_counts=final_stats.get("emotion_distribution", {}),
         )
         batch_job.mark_completed(output_path)
         db.session.commit()
 
         return {
-            'success': True,
-            'batch_job_id': batch_job_id,
-            'output_path': output_path,
-            'total_processed': total_records,
-            'stats': final_stats
+            "success": True,
+            "batch_job_id": batch_job_id,
+            "output_path": output_path,
+            "total_processed": total_records,
+            "stats": final_stats,
         }
 
     except Exception as e:
@@ -151,7 +145,7 @@ def cleanup_old_batch_files(days: int = 7):
     old_jobs = BatchJob.query.filter(
         BatchJob.status == BatchJob.STATUS_COMPLETED,
         BatchJob.completed_at < cutoff,
-        BatchJob.result_file_path.isnot(None)
+        BatchJob.result_file_path.isnot(None),
     ).all()
 
     deleted_files = 0
@@ -163,10 +157,7 @@ def cleanup_old_batch_files(days: int = 7):
             except OSError:
                 pass
 
-    return {
-        'jobs_checked': len(old_jobs),
-        'files_deleted': deleted_files
-    }
+    return {"jobs_checked": len(old_jobs), "files_deleted": deleted_files}
 
 
 @shared_task
@@ -177,4 +168,4 @@ def cleanup_old_batch_jobs(days: int = 30):
         days: Delete records older than this many days
     """
     deleted = BatchJob.cleanup_old_jobs(days=days)
-    return {'deleted_jobs': deleted}
+    return {"deleted_jobs": deleted}
