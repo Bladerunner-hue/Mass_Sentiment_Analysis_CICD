@@ -106,7 +106,7 @@
 {% endmacro %}
 
 {# Pagination controls #}
-{% macro pagination(pagination_obj, endpoint, **kwargs) %}
+{% macro pagination(pagination_obj, endpoint) %}
 {% if pagination_obj.pages > 1 %}
 <nav class="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6">
     <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
