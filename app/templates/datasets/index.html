@@ -78,7 +78,7 @@
         <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-xl font-semibold text-gray-900">🚀 Quick Actions</h2>
         </div>
-        <div class="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="p-6 grid grid-cols-1 md:grid-cols-5 gap-4">
             <button onclick="downloadPopularDataset('emotion')" 
                     class="flex items-center justify-center p-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:opacity-90 transition">
                 <span class="text-lg">😊 Emotion Dataset</span>
@@ -94,6 +94,14 @@
             <button onclick="downloadKaggleDataset('kazanova/sentiment140')" 
                     class="flex items-center justify-center p-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg hover:opacity-90 transition">
                 <span class="text-lg">📊 Sentiment140</span>
+            </button>
+            <button onclick="runSparkProcessing()" 
+                    class="flex items-center justify-center p-4 bg-gradient-to-r from-gray-800 to-gray-600 text-white rounded-lg hover:opacity-90 transition">
+                <span class="text-lg">⚡ Run Spark ETL</span>
+            </button>
+            <button onclick="startSparkTwitter()" 
+                    class="flex items-center justify-center p-4 bg-gradient-to-r from-black to-gray-700 text-white rounded-lg hover:opacity-90 transition">
+                <span class="text-lg">𝕏 Spark Stream</span>
             </button>
         </div>
     </div>
@@ -338,6 +346,46 @@ function showDownloadToast(message) {
 
 function hideDownloadToast() {
     document.getElementById('download-toast').classList.add('hidden');
+}
+
+async function runSparkProcessing() {
+    showDownloadToast('Running Spark ETL...');
+    try {
+        const resp = await fetch('/datasets/api/spark/process', {method: 'POST'});
+        const result = await resp.json();
+        hideDownloadToast();
+        if (result.success) {
+            alert('✅ Spark ETL completed.\n\n' + (result.stdout || ''));
+        } else {
+            alert('❌ Spark ETL failed.\n\n' + (result.stderr || result.error || ''));
+        }
+    } catch (err) {
+        hideDownloadToast();
+        alert('❌ Error running Spark: ' + err.message);
+    }
+}
+
+async function startSparkTwitter() {
+    const query = prompt('Enter Twitter query (default: sentiment)', 'sentiment') || 'sentiment';
+    const batchSize = prompt('Tweets per batch (10-100)', '50') || '50';
+    showDownloadToast('Starting Spark Twitter stream...');
+    try {
+        const resp = await fetch('/datasets/api/twitter/spark/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({query: query, batch_size: Number(batchSize)})
+        });
+        const result = await resp.json();
+        hideDownloadToast();
+        if (result.success) {
+            alert('✅ Spark Twitter stream launched.\n\n' + (result.stdout || result.note || ''));
+        } else {
+            alert('❌ Failed to start Spark stream.\n\n' + (result.stderr || result.error || ''));
+        }
+    } catch (err) {
+        hideDownloadToast();
+        alert('❌ Error starting Spark stream: ' + err.message);
+    }
 }
 
 // Close modal on escape

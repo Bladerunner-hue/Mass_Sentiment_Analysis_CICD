@@ -202,9 +202,11 @@ class DatasetService:
             List of dataset info dictionaries
         """
         try:
+            # Note: --max-size expects bytes, not "10GB" format
+            # 10GB = 10 * 1024 * 1024 * 1024 = 10737418240 bytes
             result = subprocess.run(
                 ["kaggle", "datasets", "list", "-s", query, "--sort-by", sort_by, 
-                 "--file-type", file_type, "--max-size", "10GB", "-v", "--csv"],
+                 "--file-type", file_type, "-v", "--csv"],
                 capture_output=True,
                 text=True,
                 timeout=30
