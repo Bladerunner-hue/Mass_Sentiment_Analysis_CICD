@@ -19,15 +19,11 @@ load_dotenv()
 from app import create_app
 
 # Create the application instance
-app = create_app(os.environ.get('FLASK_CONFIG', 'development'))
+app = create_app(os.environ.get("FLASK_CONFIG", "development"))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Development server
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "True").lower() == "true"
 
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=debug
-    )
+    app.run(host="0.0.0.0", port=port, debug=debug)

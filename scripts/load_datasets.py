@@ -51,7 +51,9 @@ def _standardize(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _stratified_split(df: pd.DataFrame, train_ratio=0.7, val_ratio=0.15) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def _stratified_split(
+    df: pd.DataFrame, train_ratio=0.7, val_ratio=0.15
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     # Simple stratified split on sentiment; fall back to random if not enough
     train_parts = []
     val_parts = []
@@ -80,7 +82,13 @@ def _write_split(df: pd.DataFrame, out_dir: Path):
     df.to_parquet(out_dir / "part-00000.parquet", index=False)
 
 
-def _write_metadata(train_df: pd.DataFrame, val_df: pd.DataFrame, test_df: pd.DataFrame, out_root: Path, sources_count):
+def _write_metadata(
+    train_df: pd.DataFrame,
+    val_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+    out_root: Path,
+    sources_count,
+):
     meta = {
         "created_at": datetime.utcnow().isoformat(),
         "counts": {
@@ -97,9 +105,15 @@ def _write_metadata(train_df: pd.DataFrame, val_df: pd.DataFrame, test_df: pd.Da
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Merge static datasets into train/val/test splits.")
-    parser.add_argument("--raw-root", default="data/raw", help="Root directory containing hf/kaggle/static_datasets")
-    parser.add_argument("--processed-root", default="data/processed", help="Output directory for processed splits")
+    parser = argparse.ArgumentParser(
+        description="Merge static datasets into train/val/test splits."
+    )
+    parser.add_argument(
+        "--raw-root", default="data/raw", help="Root directory containing hf/kaggle/static_datasets"
+    )
+    parser.add_argument(
+        "--processed-root", default="data/processed", help="Output directory for processed splits"
+    )
     parser.add_argument("--train-ratio", type=float, default=0.7)
     parser.add_argument("--val-ratio", type=float, default=0.15)
     args = parser.parse_args()

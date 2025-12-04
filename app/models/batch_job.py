@@ -1,7 +1,7 @@
 """Batch job model for tracking CSV batch processing."""
 
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, JSON, Index
@@ -38,13 +38,17 @@ class BatchJob(db.Model):
         completed_at: Job completion timestamp
     """
 
-    __tablename__ = 'batch_jobs'
+    __tablename__ = "batch_jobs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False, index=True)
-    celery_task_id: Mapped[Optional[str]] = mapped_column(String(50), unique=True, nullable=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+    celery_task_id: Mapped[Optional[str]] = mapped_column(
+        String(50), unique=True, nullable=True, index=True
+    )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default='pending', nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)
 
     # Processing stats
     total_records: Mapped[int] = mapped_column(Integer, default=0)
@@ -65,22 +69,20 @@ class BatchJob(db.Model):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    user = relationship('User', back_populates='batch_jobs')
+    user = relationship("User", back_populates="batch_jobs")
 
     # Composite indexes
-    __table_args__ = (
-        Index('idx_user_status_date', 'user_id', 'status', 'created_at'),
-    )
+    __table_args__ = (Index("idx_user_status_date", "user_id", "status", "created_at"),)
 
     # Status constants
-    STATUS_PENDING = 'pending'
-    STATUS_PROCESSING = 'processing'
-    STATUS_COMPLETED = 'completed'
-    STATUS_FAILED = 'failed'
+    STATUS_PENDING = "pending"
+    STATUS_PROCESSING = "processing"
+    STATUS_COMPLETED = "completed"
+    STATUS_FAILED = "failed"
 
     def __repr__(self) -> str:
         """String representation of BatchJob."""
-        return f'<BatchJob {self.id}: {self.status}>'
+        return f"<BatchJob {self.id}: {self.status}>"
 
     def to_dict(self) -> dict:
         """Convert batch job to dictionary representation.
@@ -89,27 +91,27 @@ class BatchJob(db.Model):
             dict: Batch job data dictionary
         """
         return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'celery_task_id': self.celery_task_id,
-            'filename': self.filename,
-            'status': self.status,
-            'total_records': self.total_records,
-            'processed_records': self.processed_records,
-            'failed_records': self.failed_records,
-            'progress_percent': self.progress_percent,
-            'sentiment_distribution': {
-                'positive': self.positive_count,
-                'negative': self.negative_count,
-                'neutral': self.neutral_count
+            "id": self.id,
+            "user_id": self.user_id,
+            "celery_task_id": self.celery_task_id,
+            "filename": self.filename,
+            "status": self.status,
+            "total_records": self.total_records,
+            "processed_records": self.processed_records,
+            "failed_records": self.failed_records,
+            "progress_percent": self.progress_percent,
+            "sentiment_distribution": {
+                "positive": self.positive_count,
+                "negative": self.negative_count,
+                "neutral": self.neutral_count,
             },
-            'emotion_counts': self.emotion_counts or {},
-            'error_message': self.error_message,
-            'result_file_path': self.result_file_path,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'started_at': self.started_at.isoformat() if self.started_at else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'duration_seconds': self.duration_seconds
+            "emotion_counts": self.emotion_counts or {},
+            "error_message": self.error_message,
+            "result_file_path": self.result_file_path,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "duration_seconds": self.duration_seconds,
         }
 
     @property
@@ -166,8 +168,15 @@ class BatchJob(db.Model):
         self.celery_task_id = celery_task_id
         self.started_at = datetime.utcnow()
 
-    def update_progress(self, processed: int, positive: int = 0, negative: int = 0,
-                       neutral: int = 0, emotion_counts: dict = None, failed: int = 0) -> None:
+    def update_progress(
+        self,
+        processed: int,
+        positive: int = 0,
+        negative: int = 0,
+        neutral: int = 0,
+        emotion_counts: Optional[Dict[str, int]] = None,
+        failed: int = 0,
+    ) -> None:
         """Update job progress.
 
         Args:
@@ -186,7 +195,7 @@ class BatchJob(db.Model):
         if emotion_counts:
             self.emotion_counts = emotion_counts
 
-    def mark_completed(self, result_file_path: str = None) -> None:
+    def mark_completed(self, result_file_path: Optional[str] = None) -> None:
         """Mark job as completed.
 
         Args:
@@ -207,7 +216,7 @@ class BatchJob(db.Model):
         self.error_message = error_message
 
     @staticmethod
-    def get_user_jobs(user_id: int, status: str = None, limit: int = 20) -> list:
+    def get_user_jobs(user_id: int, status: Optional[str] = None, limit: int = 20) -> List[Any]:
         """Get batch jobs for a user.
 
         Args:
@@ -235,7 +244,7 @@ class BatchJob(db.Model):
         """
         return BatchJob.query.filter(
             BatchJob.user_id == user_id,
-            BatchJob.status.in_([BatchJob.STATUS_PENDING, BatchJob.STATUS_PROCESSING])
+            BatchJob.status.in_([BatchJob.STATUS_PENDING, BatchJob.STATUS_PROCESSING]),
         ).count()
 
     @staticmethod
@@ -249,11 +258,11 @@ class BatchJob(db.Model):
             int: Number of deleted jobs
         """
         from datetime import timedelta
+
         cutoff = datetime.utcnow() - timedelta(days=days)
 
         old_jobs = BatchJob.query.filter(
-            BatchJob.status == BatchJob.STATUS_COMPLETED,
-            BatchJob.completed_at < cutoff
+            BatchJob.status == BatchJob.STATUS_COMPLETED, BatchJob.completed_at < cutoff
         ).all()
 
         count = len(old_jobs)

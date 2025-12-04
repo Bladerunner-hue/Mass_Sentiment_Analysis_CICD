@@ -23,10 +23,26 @@ def fetch_tweets(service: XTwitterService, query: str, batch_size: int) -> List[
 
 def main():
     parser = argparse.ArgumentParser(description="Spark streaming Twitter collector.")
-    parser.add_argument("--query", default=os.getenv("X_STREAM_QUERY", "sentiment"), help="Twitter search query")
-    parser.add_argument("--batch-size", type=int, default=int(os.getenv("X_STREAM_BATCH_SIZE", 50)), help="Tweets per micro-batch")
-    parser.add_argument("--output", default=os.getenv("X_STREAM_OUTPUT", "data/raw/twitter_stream_spark"), help="Output root for Parquet")
-    parser.add_argument("--rows-per-second", type=int, default=1, help="Rate source rows per second to drive batches")
+    parser.add_argument(
+        "--query", default=os.getenv("X_STREAM_QUERY", "sentiment"), help="Twitter search query"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=int(os.getenv("X_STREAM_BATCH_SIZE", 50)),
+        help="Tweets per micro-batch",
+    )
+    parser.add_argument(
+        "--output",
+        default=os.getenv("X_STREAM_OUTPUT", "data/raw/twitter_stream_spark"),
+        help="Output root for Parquet",
+    )
+    parser.add_argument(
+        "--rows-per-second",
+        type=int,
+        default=1,
+        help="Rate source rows per second to drive batches",
+    )
     args = parser.parse_args()
 
     service = XTwitterService()
@@ -40,11 +56,7 @@ def main():
         .getOrCreate()
     )
 
-    rate_df = (
-        spark.readStream.format("rate")
-        .option("rowsPerSecond", args.rows_per_second)
-        .load()
-    )
+    rate_df = spark.readStream.format("rate").option("rowsPerSecond", args.rows_per_second).load()
 
     output_root = args.output
 

@@ -241,7 +241,9 @@ def train_model(config: TrainerConfig) -> str:
 
     scaler = GradScaler(enabled=config.fp16 and device.type == "cuda")
 
-    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
+    optimizer = optim.AdamW(
+        model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay
+    )
     sentiment_loss_fn = nn.CrossEntropyLoss()
     emotion_loss_fn = nn.CrossEntropyLoss()
 
@@ -261,10 +263,12 @@ def train_model(config: TrainerConfig) -> str:
 
             optimizer.zero_grad()
             with autocast(enabled=config.fp16 and device.type == "cuda"):
-                sentiment_logits, emotion_logits, _ = model(input_ids, attention_mask=attention_mask)
-                loss = sentiment_loss_fn(sentiment_logits, sentiment_labels) + 0.5 * emotion_loss_fn(
-                    emotion_logits, emotion_labels
+                sentiment_logits, emotion_logits, _ = model(
+                    input_ids, attention_mask=attention_mask
                 )
+                loss = sentiment_loss_fn(
+                    sentiment_logits, sentiment_labels
+                ) + 0.5 * emotion_loss_fn(emotion_logits, emotion_labels)
 
             scaler.scale(loss).backward()
             if config.gradient_clip:
@@ -290,13 +294,17 @@ def train_model(config: TrainerConfig) -> str:
                 sentiment_labels = batch["sentiment"].to(device)
                 emotion_labels = batch["emotion"].to(device)
                 with autocast(enabled=config.fp16 and device.type == "cuda"):
-                    sentiment_logits, emotion_logits, _ = model(input_ids, attention_mask=attention_mask)
-                    loss = sentiment_loss_fn(sentiment_logits, sentiment_labels) + 0.5 * emotion_loss_fn(
-                        emotion_logits, emotion_labels
+                    sentiment_logits, emotion_logits, _ = model(
+                        input_ids, attention_mask=attention_mask
                     )
+                    loss = sentiment_loss_fn(
+                        sentiment_logits, sentiment_labels
+                    ) + 0.5 * emotion_loss_fn(emotion_logits, emotion_labels)
                 val_loss += loss.item()
 
-                sentiment_correct += (sentiment_logits.argmax(dim=1) == sentiment_labels).sum().item()
+                sentiment_correct += (
+                    (sentiment_logits.argmax(dim=1) == sentiment_labels).sum().item()
+                )
                 emotion_correct += (emotion_logits.argmax(dim=1) == emotion_labels).sum().item()
                 total += sentiment_labels.size(0)
 
@@ -326,7 +334,13 @@ def train_model(config: TrainerConfig) -> str:
         )
 
         if avg_val_loss < best["val_loss"]:
-            best.update({"val_loss": avg_val_loss, "sentiment_acc": sentiment_acc, "emotion_acc": emotion_acc})
+            best.update(
+                {
+                    "val_loss": avg_val_loss,
+                    "sentiment_acc": sentiment_acc,
+                    "emotion_acc": emotion_acc,
+                }
+            )
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
