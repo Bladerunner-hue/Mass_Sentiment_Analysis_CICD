@@ -1,8 +1,10 @@
 """Spark 4.0 Configuration for Streaming and Distributed Training."""
 
 import os
-from pyspark.sql import SparkSession
+from urllib.parse import urlparse
+
 from pyspark.conf import SparkConf
+from pyspark.sql import SparkSession
 
 
 class SparkConfig:
@@ -22,19 +24,27 @@ class SparkConfig:
     
     # Streaming configuration
     STREAMING_BATCH_INTERVAL = int(os.getenv("SPARK_STREAMING_BATCH_INTERVAL", "10"))  # seconds
-    CHECKPOINT_DIR = os.getenv("SPARK_CHECKPOINT_DIR", "/tmp/spark_checkpoints")
+    CHECKPOINT_DIR = os.getenv(
+        "SPARK_CHECKPOINT_DIR", os.getenv("SPARK_STREAMING_CHECKPOINT", "/tmp/spark_checkpoints")
+    )
     
     # Kafka configuration (for Twitter streaming)
     KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
     KAFKA_TOPIC_TWITTER = os.getenv("KAFKA_TOPIC_TWITTER", "twitter_stream")
     
-    # PostgreSQL configuration
-    POSTGRES_URL = os.getenv(
-        "POSTGRES_URL",
-        "jdbc:postgresql://localhost:5432/sentiment_db"
-    )
-    POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
+    # PostgreSQL configuration (prefer environment URLs)
+    _DB_URL = os.getenv("POSTGRES_URL") or os.getenv("DATABASE_URL") or os.getenv("TRAINING_DB_URL")
+    if _DB_URL and _DB_URL.startswith("postgres"):
+        parsed = urlparse(_DB_URL.replace("postgres://", "postgresql://"))
+        POSTGRES_URL = (
+            f"jdbc:postgresql://{parsed.hostname}:{parsed.port or 5432}{parsed.path}"
+        )
+        POSTGRES_USER = parsed.username or os.getenv("POSTGRES_USER", "postgres")
+        POSTGRES_PASSWORD = parsed.password or os.getenv("POSTGRES_PASSWORD", "")
+    else:
+        POSTGRES_URL = "jdbc:postgresql://localhost:5432/sentiment_db"
+        POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+        POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
     
     # Petastorm configuration
     PETASTORM_CACHE_DIR = os.getenv("PETASTORM_CACHE_DIR", "file:///tmp/petastorm_cache")

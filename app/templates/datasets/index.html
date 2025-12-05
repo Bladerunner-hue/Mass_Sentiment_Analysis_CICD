@@ -179,8 +179,12 @@
     </div>
 </div>
 
-<!-- Download Progress Toast -->
-<div id="download-toast" class="fixed bottom-4 right-4 hidden">
+<!-- Notification Container - Non-blocking notifications -->
+<div id="notification-container" class="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-3 max-h-[80vh] overflow-y-auto pointer-events-none" style="max-width: 420px;">
+</div>
+
+<!-- Download Progress Indicator (inline, non-blocking) -->
+<div id="download-toast" class="fixed bottom-4 left-4 hidden z-40">
     <div class="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-4">
         <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -193,6 +197,73 @@
 
 {% block extra_js %}
 <script>
+// ============================================================================
+// Non-blocking Notification System
+// ============================================================================
+let notificationId = 0;
+
+function showNotification(message, type = 'info', duration = 8000) {
+    const container = document.getElementById('notification-container');
+    const id = `notification-${++notificationId}`;
+    
+    const colors = {
+        success: 'bg-green-50 border-green-500 text-green-800',
+        error: 'bg-red-50 border-red-500 text-red-800',
+        warning: 'bg-yellow-50 border-yellow-500 text-yellow-800',
+        info: 'bg-blue-50 border-blue-500 text-blue-800'
+    };
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    const notification = document.createElement('div');
+    notification.id = id;
+    notification.className = `pointer-events-auto ${colors[type]} border-l-4 p-4 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full`;
+    notification.innerHTML = `
+        <div class="flex items-start">
+            <span class="text-lg mr-3 flex-shrink-0">${icons[type]}</span>
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium whitespace-pre-line break-words">${message}</p>
+            </div>
+            <button onclick="dismissNotification('${id}')" class="ml-3 flex-shrink-0 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Trigger animation
+    requestAnimationFrame(() => {
+        notification.classList.remove('opacity-0', 'translate-x-full');
+    });
+    
+    // Auto-dismiss after duration
+    if (duration > 0) {
+        setTimeout(() => dismissNotification(id), duration);
+    }
+    
+    return id;
+}
+
+function dismissNotification(id) {
+    const notification = document.getElementById(id);
+    if (notification) {
+        notification.classList.add('opacity-0', 'translate-x-full');
+        setTimeout(() => notification.remove(), 300);
+    }
+}
+
+// ============================================================================
+// Download Functions
+// ============================================================================
+
 // Download HuggingFace dataset
 async function downloadPopularDataset(datasetId, subset = null) {
     showDownloadToast(`Downloading ${datasetId}...`);
@@ -212,14 +283,14 @@ async function downloadPopularDataset(datasetId, subset = null) {
         hideDownloadToast();
         
         if (result.success) {
-            alert(`✅ Downloaded ${datasetId}!\n\nRows: ${result.num_rows}\nPath: ${result.path}`);
-            location.reload();
+            showNotification(`Downloaded ${datasetId}!\n\nRows: ${result.num_rows.toLocaleString()}\nPath: ${result.path}`, 'success');
+            refreshLocalDatasets();
         } else {
-            alert(`❌ Error: ${result.error}`);
+            showNotification(`Failed to download ${datasetId}:\n${result.error}`, 'error', 15000);
         }
     } catch (err) {
         hideDownloadToast();
-        alert(`❌ Error: ${err.message}`);
+        showNotification(`Error downloading ${datasetId}:\n${err.message}`, 'error', 15000);
     }
 }
 
@@ -238,14 +309,14 @@ async function downloadKaggleDataset(datasetId) {
         hideDownloadToast();
         
         if (result.success) {
-            alert(`✅ Downloaded ${datasetId}!\n\nFiles: ${result.files.length}\nTotal Size: ${result.total_size_mb.toFixed(2)} MB`);
-            location.reload();
+            showNotification(`Downloaded ${datasetId}!\n\nFiles: ${result.files.length}\nTotal Size: ${result.total_size_mb.toFixed(2)} MB`, 'success');
+            refreshLocalDatasets();
         } else {
-            alert(`❌ Error: ${result.error}`);
+            showNotification(`Failed to download ${datasetId}:\n${result.error}`, 'error', 15000);
         }
     } catch (err) {
         hideDownloadToast();
-        alert(`❌ Error: ${err.message}`);
+        showNotification(`Error downloading ${datasetId}:\n${err.message}`, 'error', 15000);
     }
 }
 
@@ -318,13 +389,13 @@ async function deleteDataset(path) {
         const result = await response.json();
         
         if (result.success) {
-            alert('✅ Dataset deleted');
-            location.reload();
+            showNotification('Dataset deleted successfully', 'success');
+            refreshLocalDatasets();
         } else {
-            alert(`❌ Error: ${result.error}`);
+            showNotification(`Failed to delete dataset:\n${result.error}`, 'error');
         }
     } catch (err) {
-        alert(`❌ Error: ${err.message}`);
+        showNotification(`Error deleting dataset:\n${err.message}`, 'error');
     }
 }
 
@@ -333,9 +404,63 @@ function closePreviewModal() {
     document.getElementById('preview-modal').classList.add('hidden');
 }
 
-// Refresh local datasets
-function refreshLocalDatasets() {
-    location.reload();
+// Refresh local datasets - AJAX instead of full reload
+async function refreshLocalDatasets() {
+    const container = document.getElementById('local-datasets-container');
+    container.innerHTML = '<div class="p-8 text-center text-gray-400 animate-pulse">Loading datasets...</div>';
+    
+    try {
+        const response = await fetch('/datasets/api/local/list');
+        const result = await response.json();
+        
+        if (result.datasets && result.datasets.length > 0) {
+            let html = '';
+            result.datasets.forEach(dataset => {
+                const typeColor = dataset.type === 'raw' ? 'blue' : 'green';
+                html += `
+                <div class="p-6 hover:bg-gray-50 transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="p-3 bg-${typeColor}-100 rounded-lg">
+                                <svg class="w-6 h-6 text-${typeColor}-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">${dataset.name}</h3>
+                                <p class="text-sm text-gray-500">
+                                    ${dataset.type.charAt(0).toUpperCase() + dataset.type.slice(1)} • ${dataset.num_files} files • ${dataset.size_mb.toFixed(2)} MB
+                                </p>
+                                <p class="text-xs text-gray-400 mt-1 font-mono">${dataset.path}</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="previewDataset('${dataset.path}')" 
+                                    class="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm">
+                                👁 Preview
+                            </button>
+                            <button onclick="deleteDataset('${dataset.path}')" 
+                                    class="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm">
+                                🗑 Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = `
+                <div class="p-12 text-center text-gray-500">
+                    <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                    </svg>
+                    <p class="text-lg">No local datasets yet</p>
+                    <p class="text-sm mt-2">Download datasets from Kaggle or HuggingFace to get started</p>
+                </div>`;
+        }
+    } catch (err) {
+        container.innerHTML = `<div class="p-8 text-center text-red-500">Error loading datasets: ${err.message}</div>`;
+    }
 }
 
 // Toast helpers
@@ -355,13 +480,13 @@ async function runSparkProcessing() {
         const result = await resp.json();
         hideDownloadToast();
         if (result.success) {
-            alert('✅ Spark ETL completed.\n\n' + (result.stdout || ''));
+            showNotification('Spark ETL completed successfully!\n\n' + (result.stdout || '').substring(0, 200), 'success', 12000);
         } else {
-            alert('❌ Spark ETL failed.\n\n' + (result.stderr || result.error || ''));
+            showNotification('Spark ETL failed:\n' + (result.stderr || result.error || '').substring(0, 300), 'error', 15000);
         }
     } catch (err) {
         hideDownloadToast();
-        alert('❌ Error running Spark: ' + err.message);
+        showNotification('Error running Spark:\n' + err.message, 'error');
     }
 }
 
@@ -378,13 +503,13 @@ async function startSparkTwitter() {
         const result = await resp.json();
         hideDownloadToast();
         if (result.success) {
-            alert('✅ Spark Twitter stream launched.\n\n' + (result.stdout || result.note || ''));
+            showNotification('Spark Twitter stream launched!\n\n' + (result.stdout || result.note || '').substring(0, 200), 'success', 12000);
         } else {
-            alert('❌ Failed to start Spark stream.\n\n' + (result.stderr || result.error || ''));
+            showNotification('Failed to start Spark stream:\n' + (result.stderr || result.error || '').substring(0, 300), 'error', 15000);
         }
     } catch (err) {
         hideDownloadToast();
-        alert('❌ Error starting Spark stream: ' + err.message);
+        showNotification('Error starting Spark stream:\n' + err.message, 'error');
     }
 }
 
