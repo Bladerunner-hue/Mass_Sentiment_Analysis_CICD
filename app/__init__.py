@@ -159,6 +159,11 @@ def _register_blueprints(app):
     app.register_blueprint(datasets_bp, url_prefix="/datasets")
     csrf.exempt(datasets_bp)
 
+    # Experiment/training blueprint
+    from app.experiments import bp as experiments_bp
+
+    app.register_blueprint(experiments_bp, url_prefix="/experiments")
+
 
 def _register_error_handlers(app):
     """Register error handlers.
