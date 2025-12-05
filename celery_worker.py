@@ -16,14 +16,14 @@ import os
 from app import create_app
 
 # Create Flask application
-flask_app = create_app(os.environ.get('FLASK_CONFIG', 'development'))
+flask_app = create_app(os.environ.get("FLASK_CONFIG", "development"))
 
 # Get Celery instance from Flask app
-celery = flask_app.extensions['celery']
+celery = flask_app.extensions["celery"]
 
 # Import tasks to register them with Celery
 from app.batch import tasks  # noqa: F401, E402
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     celery.start()

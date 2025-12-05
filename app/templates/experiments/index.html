@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+
+{% block title %}Experiments & Training{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div class="bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-800 rounded-2xl text-white p-8 shadow-xl">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <p class="uppercase text-sm tracking-[0.25em] text-blue-200">Notebook-like lab</p>
+                <h1 class="text-3xl md:text-4xl font-semibold mt-2">Dataset ➜ Train/Test ➜ Metrics</h1>
+                <p class="text-blue-100 mt-3 max-w-3xl">
+                    Download a dataset, normalize its columns, launch the BiLSTM/Attention trainer, and pull historical validation/test metrics straight from Postgres.
+                </p>
+            </div>
+            <div class="bg-white/10 border border-white/20 rounded-xl px-4 py-3">
+                <div class="text-xs uppercase tracking-wide text-blue-100">Status</div>
+                <div class="text-lg font-bold" id="lab-status">Ready</div>
+                <div class="text-xs text-blue-200">Tracks runs in <span class="font-mono">training_runs</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500">Step 1</div>
+            <h3 class="text-lg font-semibold mt-1">Download / Pick Dataset</h3>
+            <p class="text-sm text-slate-600 mt-2">Grab data from HuggingFace/Kaggle or select a local file. We’ll auto-normalize to <code>text</code>, <code>sentiment</code>, <code>emotion</code>.</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500">Step 2</div>
+            <h3 class="text-lg font-semibold mt-1">Train & Test</h3>
+            <p class="text-sm text-slate-600 mt-2">Run the existing PyTorch trainer (with val split + optional test file) in a background thread. Checkpoints land in <code>models/checkpoints</code>.</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+            <div class="text-xs uppercase tracking-wide text-slate-500">Step 3</div>
+            <h3 class="text-lg font-semibold mt-1">Inspect History</h3>
+            <p class="text-sm text-slate-600 mt-2">Fetch validation/test history from Postgres (<code>training_runs</code> + <code>epoch_metrics</code>) and plot losses/accuracies.</p>
+        </div>
+    </div>
+
+    <!-- Quickstart + Dataset picker -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-slate-900">Dataset inputs</h2>
+                    <p class="text-sm text-slate-600">Point to local parquet/CSV files or use the quick download.</p>
+                </div>
+                <a href="{{ url_for('datasets.index') }}" class="text-blue-600 text-sm hover:text-blue-800">Open Dataset Manager →</a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4" id="local-datasets"></div>
+
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-slate-700">Train file path</label>
+                <input id="train-path" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:ring-2 focus:ring-blue-500" placeholder="e.g. data/raw/hf/emotion/train.parquet">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Validation file path (optional)</label>
+                    <input id="val-path" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2" placeholder="data/raw/hf/emotion/validation.parquet">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Test file path (optional)</label>
+                    <input id="test-path" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2" placeholder="data/raw/hf/emotion/test.parquet">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Text column</label>
+                    <input id="text-col" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2" value="text">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Sentiment column</label>
+                    <input id="sentiment-col" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2" placeholder="sentiment / label">
+                    <p class="text-xs text-slate-500 mt-1">Leave empty to derive from emotion labels.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Emotion column</label>
+                    <input id="emotion-col" type="text" class="w-full rounded-lg border border-slate-200 px-3 py-2" placeholder="emotion / label">
+                </div>
+            </div>
+
+            <div class="mt-4 flex items-center space-x-4">
+                <label class="inline-flex items-center space-x-2">
+                    <input id="derive-sentiment" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked>
+                    <span class="text-sm text-slate-700">Derive sentiment from emotion labels</span>
+                </label>
+                <label class="inline-flex items-center space-x-2">
+                    <input id="fp16" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked>
+                    <span class="text-sm text-slate-700">Use FP16 when CUDA is available</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="bg-slate-900 text-white rounded-2xl shadow-lg p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">Quickstart</h3>
+                    <p class="text-sm text-slate-200">Download + autofill the HF emotion dataset.</p>
+                </div>
+                <button id="quickstart-download" class="px-3 py-2 bg-white text-slate-900 rounded-lg text-sm hover:bg-slate-100">Download splits</button>
+            </div>
+            <div class="bg-white/10 rounded-xl p-4 text-sm leading-relaxed">
+                <div><span class="font-mono text-blue-200">dataset:</span> <span id="qs-dataset">dair-ai/emotion</span></div>
+                <div><span class="font-mono text-blue-200">text:</span> <span id="qs-text">text</span></div>
+                <div><span class="font-mono text-blue-200">emotion:</span> <span id="qs-emotion">label</span></div>
+                <div><span class="font-mono text-blue-200">sentiment:</span> derived from emotion</div>
+                <p class="text-slate-300 mt-3 text-xs">We map joy/love → positive, anger/fear/sadness/disgust → negative, surprise/neutral → neutral.</p>
+            </div>
+            <div class="border-t border-white/10 pt-4">
+                <h4 class="text-sm font-semibold text-slate-100 uppercase tracking-wide">Hyperparameters</h4>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <label class="text-xs text-slate-200">Epochs
+                        <input id="hp-epochs" type="number" value="3" class="mt-1 w-full rounded-md border border-white/10 bg-white/10 text-white px-2 py-1">
+                    </label>
+                    <label class="text-xs text-slate-200">Batch size
+                        <input id="hp-batch" type="number" value="64" class="mt-1 w-full rounded-md border border-white/10 bg-white/10 text-white px-2 py-1">
+                    </label>
+                    <label class="text-xs text-slate-200">LR
+                        <input id="hp-lr" type="number" step="0.0001" value="0.001" class="mt-1 w-full rounded-md border border-white/10 bg-white/10 text-white px-2 py-1">
+                    </label>
+                    <label class="text-xs text-slate-200">Max length
+                        <input id="hp-maxlen" type="number" value="160" class="mt-1 w-full rounded-md border border-white/10 bg-white/10 text-white px-2 py-1">
+                    </label>
+                </div>
+                <label class="text-xs text-slate-200 block mt-2">Notes
+                    <textarea id="notes" rows="2" class="mt-1 w-full rounded-md border border-white/10 bg-white/10 text-white px-2 py-1"></textarea>
+                </label>
+                <button id="launch-training" class="mt-4 w-full bg-blue-500 hover:bg-blue-400 text-white rounded-lg py-2 font-semibold">Launch training</button>
+            </div>
+            <div class="text-xs text-slate-300">
+                Active jobs: <span id="job-count">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics + history -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-slate-900">Validation/Test curves</h2>
+                    <p class="text-sm text-slate-600">Pulled from <code>epoch_metrics</code> for the selected run.</p>
+                </div>
+                <select id="run-selector" class="rounded-lg border border-slate-200 px-3 py-2 text-sm"></select>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-50 rounded-xl p-4">
+                    <canvas id="loss-chart" height="220"></canvas>
+                </div>
+                <div class="bg-slate-50 rounded-xl p-4">
+                    <canvas id="acc-chart" height="220"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="bg-slate-900 text-white rounded-2xl shadow-lg p-6 space-y-4">
+            <h3 class="text-lg font-semibold">Latest run snapshot</h3>
+            <div id="latest-run" class="space-y-2 text-sm text-slate-200">
+                <div class="animate-pulse text-slate-400">Loading history...</div>
+            </div>
+            <div id="job-status" class="text-xs text-slate-300"></div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-xl font-semibold text-slate-900">Training history (Postgres)</h2>
+                <p class="text-sm text-slate-600">Live view of <code>training_runs</code> + best val/test metrics.</p>
+            </div>
+            <button class="text-blue-600 text-sm hover:text-blue-800" onclick="loadHistory()">Refresh</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-600">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Run</th>
+                        <th class="px-3 py-2 text-left">Dataset</th>
+                        <th class="px-3 py-2 text-left">Status</th>
+                        <th class="px-3 py-2 text-left">Val loss</th>
+                        <th class="px-3 py-2 text-left">Val acc</th>
+                        <th class="px-3 py-2 text-left">Test acc</th>
+                        <th class="px-3 py-2 text-left">Started</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body" class="divide-y divide-slate-100">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let lossChart, accChart;
+let quickstart;
+
+async function fetchJSON(url, opts = {}) {
+    const resp = await fetch(url, opts);
+    if (!resp.ok) throw new Error(await resp.text() || resp.statusText);
+    return resp.json();
+}
+
+function renderLocalDatasets(datasets) {
+    const container = document.getElementById('local-datasets');
+    container.innerHTML = '';
+    if (!datasets || datasets.length === 0) {
+        container.innerHTML = '<div class="col-span-3 text-sm text-slate-500">No local datasets yet.</div>';
+        return;
+    }
+    datasets.slice(0, 6).forEach(ds => {
+        const card = document.createElement('div');
+        card.className = 'border border-slate-200 rounded-lg p-3 hover:border-blue-400 cursor-pointer';
+        card.innerHTML = `
+            <div class="text-xs uppercase text-slate-500">${ds.type}</div>
+            <div class="font-semibold text-slate-900">${ds.name}</div>
+            <div class="text-xs text-slate-500">${(ds.size_mb || 0).toFixed(2)} MB • ${ds.num_files} files</div>
+            <div class="text-[11px] text-slate-400 mt-1 font-mono truncate">${ds.path}</div>
+        `;
+        card.onclick = () => { document.getElementById('train-path').value = ds.path; };
+        container.appendChild(card);
+    });
+}
+
+function setLatestRun(run) {
+    const target = document.getElementById('latest-run');
+    if (!run) {
+        target.innerHTML = '<div class="text-slate-400 text-sm">No runs logged yet.</div>';
+        return;
+    }
+    target.innerHTML = `
+        <div class="text-sm"><span class="text-slate-400">Run:</span> <span class="font-semibold">${run.run_name || 'bilstm'}</span></div>
+        <div class="text-sm"><span class="text-slate-400">Dataset:</span> ${run.dataset_name || 'n/a'}</div>
+        <div class="text-sm"><span class="text-slate-400">Status:</span> <span class="px-2 py-1 rounded-full text-xs ${run.status === 'completed' ? 'bg-emerald-500/20 text-emerald-200' : 'bg-amber-500/20 text-amber-200'}">${run.status}</span></div>
+        <div class="grid grid-cols-2 gap-2 text-xs mt-3">
+            <div class="bg-white/5 rounded-lg p-2">Val loss<br><span class="font-semibold">${(run.best_val_loss ?? 0).toFixed(4)}</span></div>
+            <div class="bg-white/5 rounded-lg p-2">Val acc<br><span class="font-semibold">${(run.best_sentiment_acc ?? 0).toFixed(3)}</span></div>
+            <div class="bg-white/5 rounded-lg p-2">Test sent<br><span class="font-semibold">${(run.test_sentiment_acc ?? 0).toFixed(3)}</span></div>
+            <div class="bg-white/5 rounded-lg p-2">Test emo<br><span class="font-semibold">${(run.test_emotion_acc ?? 0).toFixed(3)}</span></div>
+        </div>
+        <div class="text-[11px] text-slate-400 mt-2">${run.started_at || ''}</div>
+    `;
+}
+
+function renderHistory(runs) {
+    const body = document.getElementById('history-body');
+    const selector = document.getElementById('run-selector');
+    selector.innerHTML = '';
+    body.innerHTML = '';
+    if (!runs || runs.length === 0) {
+        body.innerHTML = '<tr><td class="px-3 py-2 text-sm text-slate-500" colspan="7">No training history found.</td></tr>';
+        return;
+    }
+
+    runs.forEach((run, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="px-3 py-2 font-semibold text-slate-800">#${run.id}</td>
+            <td class="px-3 py-2">${run.dataset_name || ''}</td>
+            <td class="px-3 py-2"><span class="px-2 py-1 rounded-full text-xs ${run.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${run.status}</span></td>
+            <td class="px-3 py-2">${run.best_val_loss !== null ? run.best_val_loss.toFixed(4) : '-'}</td>
+            <td class="px-3 py-2">${run.best_sentiment_acc !== null ? run.best_sentiment_acc.toFixed(3) : '-'}</td>
+            <td class="px-3 py-2">${run.test_sentiment_acc !== null ? run.test_sentiment_acc.toFixed(3) : '-'}</td>
+            <td class="px-3 py-2 text-slate-500 text-xs">${run.started_at || ''}</td>
+        `;
+        body.appendChild(tr);
+
+        const opt = document.createElement('option');
+        opt.value = run.id;
+        opt.textContent = `#${run.id} • ${run.dataset_name || 'run'} (${run.status})`;
+        if (idx === 0) opt.selected = true;
+        selector.appendChild(opt);
+    });
+}
+
+function renderCharts(metrics) {
+    const ctxLoss = document.getElementById('loss-chart').getContext('2d');
+    const ctxAcc = document.getElementById('acc-chart').getContext('2d');
+    const valPoints = (metrics || []).filter(m => !m.phase || m.phase === 'val' || m.phase === 'validation');
+    const testPoints = (metrics || []).filter(m => m.phase === 'test');
+    const labels = valPoints.map(m => m.epoch);
+    const lossData = valPoints.map(m => m.val_loss);
+    const accData = valPoints.map(m => m.sentiment_acc);
+
+    if (lossChart) lossChart.destroy();
+    if (accChart) accChart.destroy();
+
+    lossChart = new Chart(ctxLoss, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Validation loss', data: lossData, borderColor: '#2563eb', tension: 0.25, fill: false },
+                { label: 'Test loss', data: testPoints.map(m => m.val_loss), borderColor: '#f59e0b', tension: 0.25, fill: false }
+            ]
+        },
+        options: { plugins: { legend: { display: true }}, scales: { y: { beginAtZero: true } } }
+    });
+
+    accChart = new Chart(ctxAcc, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Validation sentiment acc', data: accData, borderColor: '#22c55e', tension: 0.25 },
+                { label: 'Validation emotion acc', data: valPoints.map(m => m.emotion_acc), borderColor: '#8b5cf6', tension: 0.25 },
+                { label: 'Test sentiment acc', data: testPoints.map(m => m.sentiment_acc), borderColor: '#f59e0b', tension: 0.25 }
+            ]
+        },
+        options: { plugins: { legend: { display: true }}, scales: { y: { beginAtZero: true, max: 1 } } }
+    });
+}
+
+async function loadHistory() {
+    try {
+        const data = await fetchJSON('/experiments/api/history');
+        renderHistory(data.runs);
+        setLatestRun(data.runs && data.runs[0]);
+        renderCharts(data.latest_metrics || []);
+    } catch (err) {
+        console.error(err);
+        document.getElementById('history-body').innerHTML = '<tr><td class="px-3 py-2 text-sm text-red-600" colspan="7">Unable to load history: ' + err.message + '</td></tr>';
+    }
+}
+
+async function loadMetricsForRun(runId) {
+    try {
+        const data = await fetchJSON(`/experiments/api/runs/${runId}/metrics`);
+        renderCharts(data.metrics);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function loadContext() {
+    try {
+        const data = await fetchJSON('/experiments/api/context');
+        quickstart = data.quickstart;
+        renderLocalDatasets(data.datasets);
+        document.getElementById('job-count').textContent = Object.keys(data.jobs || {}).length;
+        if (quickstart) {
+            document.getElementById('qs-dataset').textContent = quickstart.dataset_id;
+            document.getElementById('qs-text').textContent = quickstart.text_column;
+            document.getElementById('qs-emotion').textContent = quickstart.emotion_column;
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function downloadQuickstart() {
+    if (!quickstart) return;
+    try {
+        const splits = quickstart.suggested_splits || {train: 'train'};
+        const results = [];
+        for (const [key, split] of Object.entries(splits)) {
+            const resp = await fetchJSON('/experiments/api/download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({source: 'huggingface', dataset_id: quickstart.dataset_id, split, subset: quickstart.subset || null})
+            });
+            resp.split = split;
+            results.push(resp);
+            if (key === 'train') document.getElementById('train-path').value = resp.path;
+            if (key === 'val' || key === 'validation') document.getElementById('val-path').value = resp.path;
+            if (key === 'test') document.getElementById('test-path').value = resp.path;
+        }
+        alert('Downloaded splits:\n' + results.map(r => `${r.split || ''}: ${r.path || r.error}`).join('\n'));
+    } catch (err) {
+        alert('Download failed: ' + err.message);
+    }
+}
+
+async function startTraining() {
+    const payload = {
+        train_path: document.getElementById('train-path').value,
+        val_path: document.getElementById('val-path').value || null,
+        test_path: document.getElementById('test-path').value || null,
+        text_column: document.getElementById('text-col').value || 'text',
+        sentiment_column: document.getElementById('sentiment-col').value || null,
+        emotion_column: document.getElementById('emotion-col').value || null,
+        derive_sentiment_from_emotion: document.getElementById('derive-sentiment').checked,
+        dataset_name: (document.getElementById('train-path').value.split('/').pop() || 'dataset').replace(/\.[^/.]+$/, ''),
+        notes: document.getElementById('notes').value || null,
+        hyperparams: {
+            num_epochs: Number(document.getElementById('hp-epochs').value || 3),
+            batch_size: Number(document.getElementById('hp-batch').value || 64),
+            learning_rate: Number(document.getElementById('hp-lr').value || 0.001),
+            max_length: Number(document.getElementById('hp-maxlen').value || 160),
+            fp16: document.getElementById('fp16').checked,
+        }
+    };
+    if (!payload.train_path) {
+        alert('Please provide a train file path.');
+        return;
+    }
+
+    try {
+        document.getElementById('lab-status').textContent = 'Running…';
+        const resp = await fetchJSON('/experiments/api/train', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        alert('Training started. Job ID: ' + resp.job.job_id);
+        loadContext();
+    } catch (err) {
+        alert('Unable to start training: ' + err.message);
+        document.getElementById('lab-status').textContent = 'Ready';
+    }
+}
+
+document.getElementById('quickstart-download').addEventListener('click', downloadQuickstart);
+document.getElementById('launch-training').addEventListener('click', startTraining);
+document.getElementById('run-selector').addEventListener('change', (e) => loadMetricsForRun(e.target.value));
+
+loadContext();
+loadHistory();
+</script>
+{% endblock %}

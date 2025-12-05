@@ -18,6 +18,7 @@ bandit>=1.7.0
 
 # Type stubs
 types-redis>=4.6.0
+types-requests>=2.31.0
 
 # Documentation
 Sphinx>=7.0.0

@@ -42,12 +42,22 @@ def export_dataset(
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Export a Hugging Face dataset to Parquet.")
-    parser.add_argument("--dataset", required=True, help="Dataset name (e.g., carblacac/twitter-sentiment-analysis)")
+    parser.add_argument(
+        "--dataset", required=True, help="Dataset name (e.g., carblacac/twitter-sentiment-analysis)"
+    )
     parser.add_argument("--split", default="train", help="Dataset split to export (default: train)")
     parser.add_argument("--text-field", default="text", help="Column containing text")
-    parser.add_argument("--sentiment-field", default="sentiment", help="Column containing sentiment labels")
-    parser.add_argument("--emotion-field", default="emotion", help="Column containing emotion labels or will be created")
-    parser.add_argument("--default-emotion", default="neutral", help="Emotion value to fill when missing")
+    parser.add_argument(
+        "--sentiment-field", default="sentiment", help="Column containing sentiment labels"
+    )
+    parser.add_argument(
+        "--emotion-field",
+        default="emotion",
+        help="Column containing emotion labels or will be created",
+    )
+    parser.add_argument(
+        "--default-emotion", default="neutral", help="Emotion value to fill when missing"
+    )
     parser.add_argument(
         "--output",
         default=None,

@@ -1,6 +1,6 @@
 """FP16-capable predictor for the custom BiLSTM + Attention model."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 
 import torch
@@ -21,7 +21,7 @@ class CustomModelPredictor:
         self,
         model_path: str,
         tokenizer_path: str,
-        device: str = None,
+        device: Optional[str] = None,
         max_length: int = 160,
     ):
         if not os.path.exists(model_path):
