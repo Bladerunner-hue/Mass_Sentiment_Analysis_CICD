@@ -71,6 +71,10 @@
                            class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
                             📊 Datasets
                         </a>
+                        <a href="{{ url_for('experiments.index') }}"
+                           class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
+                            🧪 Experiments
+                        </a>
                         <a href="{{ url_for('main.api_docs') }}"
                            class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
                             API Docs
@@ -131,6 +135,10 @@
                     <a href="{{ url_for('batch.index') }}"
                        class="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md">
                         Batch Processing
+                    </a>
+                    <a href="{{ url_for('experiments.index') }}"
+                       class="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md">
+                        Experiments
                     </a>
                     <a href="{{ url_for('auth.logout') }}"
                        class="block px-3 py-2 text-base font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md">
