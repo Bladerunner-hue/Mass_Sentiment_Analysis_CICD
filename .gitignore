@@ -30,3 +30,14 @@ build/
 .vscode/settings.json
 .idea/app/static/dist/output.css
 models/checkpoints/
+
+# Large data files - stored in PostgreSQL instead
+data/raw/kaggle/
+data/raw/hf/
+*.csv
+*.parquet
+!tests/**/*.csv
+!tests/**/*.parquet
+
+# Playwright screenshots (regenerated on test runs)
+.playwright-mcp/

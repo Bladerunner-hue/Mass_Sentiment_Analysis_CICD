@@ -16,11 +16,12 @@ from huggingface_hub import HfApi, list_datasets, DatasetCard
 class DatasetService:
     """Service for browsing and downloading datasets from Kaggle and HuggingFace."""
 
-    def __init__(self):
+    def __init__(self, use_postgres: bool = True):
         self.kaggle_token = os.environ.get("KAGGLE_API_TOKEN")
         self.hf_token = os.environ.get("HUGGINGFACE_API_TOKEN")
         self.data_dir = Path(os.environ.get("DATA_DIR", "data"))
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.use_postgres = use_postgres
 
         # Initialize HuggingFace API
         self.hf_api = HfApi(token=self.hf_token) if self.hf_token else HfApi()
@@ -134,7 +135,7 @@ class DatasetService:
     def download_hf_dataset(
         self, dataset_id: str, subset: Optional[str] = None, split: str = "train"
     ) -> Dict[str, Any]:
-        """Download a HuggingFace dataset.
+        """Download a HuggingFace dataset and store in PostgreSQL.
 
         Args:
             dataset_id: Dataset identifier
@@ -142,7 +143,7 @@ class DatasetService:
             split: Dataset split to download
 
         Returns:
-            Download result with file path and stats
+            Download result with stats
         """
         try:
             from datasets import load_dataset
@@ -153,14 +154,26 @@ class DatasetService:
             else:
                 dataset = load_dataset(dataset_id, split=split)
 
-            # Save to parquet
+            df = pd.DataFrame(dataset)
+            
+            # Store in PostgreSQL if enabled
+            if self.use_postgres:
+                return self._store_dataset_in_postgres(
+                    df=df,
+                    name=f"hf_{dataset_id.replace('/', '_')}_{subset or split}",
+                    source="huggingface",
+                    source_id=dataset_id,
+                    subset=subset,
+                    split=split,
+                )
+            
+            # Fallback to parquet (for local development without DB)
             output_dir = self.data_dir / "raw" / "hf" / dataset_id.replace("/", "_")
             output_dir.mkdir(parents=True, exist_ok=True)
 
             filename = f"{subset}_{split}" if subset else split
             output_path = output_dir / f"{filename}.parquet"
 
-            df = pd.DataFrame(dataset)
             df.to_parquet(output_path, index=False)
 
             return {
@@ -175,6 +188,119 @@ class DatasetService:
             }
         except Exception as e:
             return {"success": False, "error": str(e), "dataset_id": dataset_id}
+    
+    def _store_dataset_in_postgres(
+        self,
+        df: pd.DataFrame,
+        name: str,
+        source: str,
+        source_id: str,
+        subset: Optional[str] = None,
+        split: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Store a DataFrame in PostgreSQL.
+        
+        Args:
+            df: DataFrame to store
+            name: Unique dataset name
+            source: Source (kaggle, huggingface, twitter)
+            source_id: Original dataset ID
+            subset: Dataset subset
+            split: Dataset split
+            
+        Returns:
+            Result dict with success status
+        """
+        try:
+            from app.models.dataset import DatasetRepository
+            
+            # Detect text and label columns
+            text_col = None
+            label_col = None
+            
+            # Common text column names
+            text_candidates = ['text', 'sentence', 'content', 'tweet', 'review', 'comment']
+            for col in text_candidates:
+                if col in df.columns:
+                    text_col = col
+                    break
+            
+            # Common label column names
+            label_candidates = ['label', 'sentiment', 'emotion', 'target', 'class']
+            for col in label_candidates:
+                if col in df.columns:
+                    label_col = col
+                    break
+            
+            if not text_col:
+                # Use first string column
+                for col in df.columns:
+                    if df[col].dtype == 'object':
+                        text_col = col
+                        break
+            
+            if not text_col:
+                return {"success": False, "error": "No text column found in dataset"}
+            
+            # Create dataset metadata
+            dataset = DatasetRepository.create_dataset(
+                name=name,
+                source=source,
+                source_id=source_id,
+                subset=subset,
+                split=split,
+                columns=list(df.columns),
+                description=f"Downloaded from {source}: {source_id}",
+            )
+            
+            # Clear existing samples (for re-import)
+            DatasetRepository.clear_samples(dataset.id)
+            
+            # Prepare samples
+            samples = []
+            label_mapping = {}
+            
+            for idx, row in df.iterrows():
+                text = str(row[text_col]) if text_col else ""
+                label = row.get(label_col) if label_col else None
+                
+                # Handle label mapping for text labels
+                label_text = None
+                if label is not None:
+                    if isinstance(label, str):
+                        if label not in label_mapping:
+                            label_mapping[label] = len(label_mapping)
+                        label_text = label
+                        label = label_mapping[label]
+                    else:
+                        label = int(label)
+                
+                samples.append({
+                    "text": text,
+                    "label": label,
+                    "label_text": label_text,
+                    "extra_data": {col: str(row[col]) for col in df.columns 
+                                if col not in [text_col, label_col]},
+                })
+            
+            # Add samples in batches
+            count = DatasetRepository.add_samples(dataset, samples, batch_size=1000)
+            
+            return {
+                "success": True,
+                "dataset_id": source_id,
+                "name": name,
+                "subset": subset,
+                "split": split,
+                "storage": "postgresql",
+                "num_rows": count,
+                "columns": list(df.columns),
+                "text_column": text_col,
+                "label_column": label_col,
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # =========================================================================
     # Kaggle Methods
@@ -293,44 +419,78 @@ class DatasetService:
             return {"error": str(e), "id": dataset_id}
 
     def download_kaggle_dataset(self, dataset_id: str, unzip: bool = True) -> Dict[str, Any]:
-        """Download a Kaggle dataset.
+        """Download a Kaggle dataset and store in PostgreSQL.
 
         Args:
             dataset_id: Dataset identifier (e.g., 'kazanova/sentiment140')
             unzip: Whether to unzip the downloaded files
 
         Returns:
-            Download result with file path and stats
+            Download result with stats
         """
         try:
-            output_dir = self.data_dir / "raw" / "kaggle" / dataset_id.replace("/", "_")
-            output_dir.mkdir(parents=True, exist_ok=True)
+            # Download to temp directory first
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
+                
+                cmd = ["kaggle", "datasets", "download", "-d", dataset_id, "-p", str(temp_path)]
+                if unzip:
+                    cmd.append("--unzip")
 
-            cmd = ["kaggle", "datasets", "download", "-d", dataset_id, "-p", str(output_dir)]
-            if unzip:
-                cmd.append("--unzip")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                if result.returncode != 0:
+                    return {"success": False, "error": result.stderr, "dataset_id": dataset_id}
 
-            if result.returncode != 0:
-                return {"success": False, "error": result.stderr, "dataset_id": dataset_id}
+                # Find CSV files and load into PostgreSQL
+                csv_files = list(temp_path.rglob("*.csv"))
+                
+                if not csv_files and self.use_postgres:
+                    return {"success": False, "error": "No CSV files found in dataset", "dataset_id": dataset_id}
+                
+                if self.use_postgres and csv_files:
+                    # Load the largest CSV (usually the main data file)
+                    main_file = max(csv_files, key=lambda f: f.stat().st_size)
+                    
+                    # Read CSV in chunks for large files
+                    chunks = []
+                    for chunk in pd.read_csv(main_file, chunksize=100000, 
+                                             encoding='latin-1', on_bad_lines='skip'):
+                        chunks.append(chunk)
+                    
+                    df = pd.concat(chunks, ignore_index=True)
+                    
+                    return self._store_dataset_in_postgres(
+                        df=df,
+                        name=f"kaggle_{dataset_id.replace('/', '_')}",
+                        source="kaggle",
+                        source_id=dataset_id,
+                    )
+                
+                # Fallback: copy to data directory (not for large files!)
+                output_dir = self.data_dir / "raw" / "kaggle" / dataset_id.replace("/", "_")
+                output_dir.mkdir(parents=True, exist_ok=True)
+                
+                files = []
+                total_size = 0
+                for f in temp_path.rglob("*"):
+                    if f.is_file():
+                        size = f.stat().st_size
+                        # Skip files larger than 50MB for git
+                        if size > 50 * 1024 * 1024:
+                            continue
+                        total_size += size
+                        dest = output_dir / f.name
+                        shutil.copy2(f, dest)
+                        files.append({"name": f.name, "path": str(dest), "size_mb": size / 1024 / 1024})
 
-            # Get downloaded files info
-            files = []
-            total_size = 0
-            for f in output_dir.rglob("*"):
-                if f.is_file():
-                    size = f.stat().st_size
-                    total_size += size
-                    files.append({"name": f.name, "path": str(f), "size_mb": size / 1024 / 1024})
-
-            return {
-                "success": True,
-                "dataset_id": dataset_id,
-                "path": str(output_dir),
-                "files": files,
-                "total_size_mb": total_size / 1024 / 1024,
-            }
+                return {
+                    "success": True,
+                    "dataset_id": dataset_id,
+                    "path": str(output_dir),
+                    "files": files,
+                    "total_size_mb": total_size / 1024 / 1024,
+                }
         except subprocess.TimeoutExpired:
             return {"success": False, "error": "Download timeout", "dataset_id": dataset_id}
         except Exception as e:
@@ -341,13 +501,34 @@ class DatasetService:
     # =========================================================================
 
     def list_local_datasets(self) -> List[Dict[str, Any]]:
-        """List all locally downloaded datasets.
+        """List all locally stored datasets (PostgreSQL + files).
 
         Returns:
             List of local dataset information
         """
         datasets = []
+        
+        # List PostgreSQL datasets first
+        if self.use_postgres:
+            try:
+                from app.models.dataset import DatasetRepository
+                
+                for ds in DatasetRepository.list_datasets():
+                    datasets.append({
+                        "name": ds.name,
+                        "path": f"postgresql://datasets/{ds.id}",
+                        "type": "postgresql",
+                        "source": ds.source,
+                        "num_files": 1,
+                        "num_rows": ds.num_rows,
+                        "size_mb": ds.num_rows * 0.001,  # Estimate
+                        "columns": ds.columns or [],
+                        "created_at": ds.created_at.isoformat() if ds.created_at else None,
+                    })
+            except Exception:
+                pass  # Database not available
 
+        # Also list file-based datasets
         for source_dir in ["raw", "processed"]:
             source_path = self.data_dir / source_dir
             if not source_path.exists():
@@ -417,14 +598,29 @@ class DatasetService:
             return {"error": str(e), "path": str(path_obj)}
 
     def delete_dataset(self, path: str) -> Dict[str, Any]:
-        """Delete a local dataset.
+        """Delete a local dataset (PostgreSQL or file-based).
 
         Args:
-            path: Path to the dataset directory
+            path: Path to the dataset directory or postgresql://datasets/{id}
 
         Returns:
             Deletion result
         """
+        # Handle PostgreSQL datasets
+        if path.startswith("postgresql://datasets/"):
+            if self.use_postgres:
+                try:
+                    from app.models.dataset import DatasetRepository
+                    
+                    dataset_id = int(path.split("/")[-1])
+                    if DatasetRepository.delete_dataset(dataset_id):
+                        return {"success": True, "deleted": path}
+                    return {"success": False, "error": "Dataset not found"}
+                except Exception as e:
+                    return {"success": False, "error": str(e)}
+            return {"success": False, "error": "PostgreSQL not enabled"}
+        
+        # Handle file-based datasets
         path_obj = Path(path)
         if not path_obj.exists():
             return {"success": False, "error": "Path not found"}
