@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dataset.name }} - Dataset Viewer{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header with Back Button -->
+    <div class="mb-6">
+        <a href="{{ url_for('datasets.index') }}" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Dataset Manager
+        </a>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{ dataset.name }}</h1>
+                    <p class="text-gray-600">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                            {% if dataset.source == 'huggingface' %}bg-yellow-100 text-yellow-800
+                            {% elif dataset.source == 'kaggle' %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ dataset.source | capitalize }}
+                        </span>
+                        {% if dataset.subset %}• {{ dataset.subset }}{% endif %}
+                        {% if dataset.split %}• {{ dataset.split }}{% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-2xl font-bold text-gray-900">{{ "{:,}".format(dataset.num_rows) }}</p>
+                <p class="text-sm text-gray-500">Total Samples</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics Dashboard - Jupyter Notebook Style -->
+    <div class="bg-white rounded-lg shadow-lg mb-8 border-l-4 border-purple-500">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <div class="flex items-center space-x-2">
+                <span class="text-orange-500 font-mono text-sm">In [1]:</span>
+                <code class="text-sm text-gray-700">dataset.describe()</code>
+            </div>
+            <span class="text-xs text-gray-500">Executed</span>
+        </div>
+        
+        <div class="p-6">
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                    <p class="text-sm text-blue-600 font-medium">Rows</p>
+                    <p class="text-2xl font-bold text-blue-900">{{ "{:,}".format(dataset.num_rows) }}</p>
+                </div>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                    <p class="text-sm text-green-600 font-medium">Columns</p>
+                    <p class="text-2xl font-bold text-green-900">{{ dataset.columns | length if dataset.columns else 3 }}</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200">
+                    <p class="text-sm text-purple-600 font-medium">Labels</p>
+                    <p class="text-2xl font-bold text-purple-900">{{ label_counts | length }}</p>
+                </div>
+                <div class="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg border border-orange-200">
+                    <p class="text-sm text-orange-600 font-medium">Source</p>
+                    <p class="text-2xl font-bold text-orange-900">{{ dataset.source | capitalize }}</p>
+                </div>
+            </div>
+            
+            <!-- Column Info -->
+            {% if dataset.columns %}
+            <div class="mb-4">
+                <h4 class="text-sm font-semibold text-gray-700 mb-2">Columns:</h4>
+                <div class="flex flex-wrap gap-2">
+                    {% for col in dataset.columns %}
+                    <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-mono">{{ col }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Label Distribution - Jupyter Style -->
+    <div class="bg-white rounded-lg shadow-lg mb-8 border-l-4 border-green-500">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <div class="flex items-center space-x-2">
+                <span class="text-orange-500 font-mono text-sm">In [2]:</span>
+                <code class="text-sm text-gray-700">dataset.label_distribution()</code>
+            </div>
+            <span class="text-xs text-gray-500">Executed</span>
+        </div>
+        
+        <div class="p-6">
+            <h3 class="text-lg font-semibold mb-4">📊 Label Distribution</h3>
+            
+            <!-- Bar Chart Visualization -->
+            <div class="space-y-3 mb-6">
+                {% for label_id, info in label_counts.items() %}
+                <div class="flex items-center">
+                    <div class="w-32 text-sm font-medium text-gray-700 truncate" title="{{ info.text }}">
+                        {{ info.text }}
+                    </div>
+                    <div class="flex-1 mx-4">
+                        <div class="h-6 bg-gray-200 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-500
+                                {% if label_id == 0 %}bg-gradient-to-r from-red-400 to-red-500
+                                {% elif label_id == 1 %}bg-gradient-to-r from-green-400 to-green-500
+                                {% elif label_id == 2 %}bg-gradient-to-r from-blue-400 to-blue-500
+                                {% elif label_id == 3 %}bg-gradient-to-r from-yellow-400 to-yellow-500
+                                {% elif label_id == 4 %}bg-gradient-to-r from-purple-400 to-purple-500
+                                {% else %}bg-gradient-to-r from-gray-400 to-gray-500{% endif %}"
+                                 style="width: {{ info.percentage }}%">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-24 text-right">
+                        <span class="text-sm font-semibold text-gray-900">{{ "{:,}".format(info.count) }}</span>
+                        <span class="text-xs text-gray-500 ml-1">({{ info.percentage }}%)</span>
+                    </div>
+                    <a href="{{ url_for('datasets.view_psql', dataset_id=dataset.id, label=label_id) }}" 
+                       class="ml-3 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                        Filter
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Sample Examples -->
+            <div class="grid grid-cols-1 md:grid-cols-{{ label_counts | length if label_counts | length <= 3 else 3 }} gap-4">
+                {% for label_id, examples in sample_examples.items() %}
+                <div class="bg-gray-50 rounded-lg p-4 border">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="w-3 h-3 rounded-full mr-2
+                            {% if label_id == 0 %}bg-red-500
+                            {% elif label_id == 1 %}bg-green-500
+                            {% elif label_id == 2 %}bg-blue-500
+                            {% elif label_id == 3 %}bg-yellow-500
+                            {% elif label_id == 4 %}bg-purple-500
+                            {% else %}bg-gray-500{% endif %}"></span>
+                        {{ label_counts[label_id].text }}
+                    </h4>
+                    <div class="space-y-2">
+                        {% for example in examples %}
+                        <p class="text-xs text-gray-600 italic bg-white p-2 rounded border-l-2 
+                            {% if label_id == 0 %}border-red-400
+                            {% elif label_id == 1 %}border-green-400
+                            {% elif label_id == 2 %}border-blue-400
+                            {% elif label_id == 3 %}border-yellow-400
+                            {% elif label_id == 4 %}border-purple-400
+                            {% else %}border-gray-400{% endif %}">
+                            "{{ example }}{% if example | length >= 200 %}..."{% endif %}"
+                        </p>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table - Jupyter Style -->
+    <div class="bg-white rounded-lg shadow-lg mb-8 border-l-4 border-blue-500">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <div class="flex items-center space-x-2">
+                <span class="text-orange-500 font-mono text-sm">In [3]:</span>
+                <code class="text-sm text-gray-700">dataset.head({{ per_page }})</code>
+            </div>
+            <div class="flex items-center space-x-4">
+                {% if label_filter is not none %}
+                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                    Filtered: label={{ label_filter }}
+                    <a href="{{ url_for('datasets.view_psql', dataset_id=dataset.id) }}" class="ml-1 text-blue-600 hover:text-blue-800">✕</a>
+                </span>
+                {% endif %}
+                <span class="text-xs text-gray-500">
+                    Showing {{ (page - 1) * per_page + 1 }}-{{ [(page * per_page), total] | min }} of {{ "{:,}".format(total) }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">#</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Text</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Label</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Label Text</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for sample in samples %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3 text-sm text-gray-500 font-mono">{{ sample.id }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900 max-w-lg">
+                            <p class="truncate" title="{{ sample.text }}">{{ sample.text[:300] }}{% if sample.text | length > 300 %}...{% endif %}</p>
+                        </td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if sample.label == 0 %}bg-red-100 text-red-800
+                                {% elif sample.label == 1 %}bg-green-100 text-green-800
+                                {% elif sample.label == 2 %}bg-blue-100 text-blue-800
+                                {% elif sample.label == 3 %}bg-yellow-100 text-yellow-800
+                                {% elif sample.label == 4 %}bg-purple-100 text-purple-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ sample.label }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ sample.label_text or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                {% if page > 1 %}
+                <a href="{{ url_for('datasets.view_psql', dataset_id=dataset.id, page=page-1, per_page=per_page, label=label_filter) }}" 
+                   class="px-3 py-2 bg-white border rounded-lg text-sm hover:bg-gray-100">
+                    ← Previous
+                </a>
+                {% endif %}
+                
+                <span class="px-4 py-2 text-sm text-gray-600">
+                    Page {{ page }} of {{ total_pages }}
+                </span>
+                
+                {% if page < total_pages %}
+                <a href="{{ url_for('datasets.view_psql', dataset_id=dataset.id, page=page+1, per_page=per_page, label=label_filter) }}" 
+                   class="px-3 py-2 bg-white border rounded-lg text-sm hover:bg-gray-100">
+                    Next →
+                </a>
+                {% endif %}
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <label class="text-sm text-gray-600">Rows per page:</label>
+                <select onchange="changePerPage(this.value)" class="border rounded px-2 py-1 text-sm">
+                    {% for n in [10, 25, 50, 100] %}
+                    <option value="{{ n }}" {{ 'selected' if n == per_page else '' }}>{{ n }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Export Options -->
+    <div class="bg-white rounded-lg shadow p-6 border-l-4 border-gray-400">
+        <h3 class="text-lg font-semibold mb-4">📤 Export & Actions</h3>
+        <div class="flex flex-wrap gap-4">
+            <button onclick="exportToCSV()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export CSV
+            </button>
+            <button onclick="useForTraining()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Use for Training
+            </button>
+            <button onclick="deleteDataset()" class="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Delete Dataset
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changePerPage(value) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('per_page', value);
+    url.searchParams.set('page', 1);
+    window.location.href = url.toString();
+}
+
+async function exportToCSV() {
+    alert('Export functionality - will be implemented to download dataset as CSV');
+}
+
+async function useForTraining() {
+    window.location.href = '/experiments/new?dataset={{ dataset.id }}';
+}
+
+async function deleteDataset() {
+    if (!confirm('Are you sure you want to delete this dataset and all {{ "{:,}".format(dataset.num_rows) }} samples? This cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/datasets/api/psql/{{ dataset.id }}/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            window.location.href = '/datasets/';
+        } else {
+            alert('Failed to delete dataset');
+        }
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+</script>
+{% endblock %}
