@@ -15,15 +15,18 @@
         <!-- Kaggle -->
         <div class="bg-white rounded-lg shadow p-6 border-l-4 {{ 'border-green-500' if apis_configured.kaggle else 'border-yellow-500' }}">
             <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">🔷 Kaggle</h3>
-                    <p class="text-sm text-gray-500 mt-1">
-                        {% if apis_configured.kaggle %}
-                            <span class="text-green-600">✓ Connected</span>
-                        {% else %}
-                            <span class="text-yellow-600">⚠ Set KAGGLE_API_TOKEN</span>
-                        {% endif %}
-                    </p>
+                <div class="flex items-center space-x-3">
+                    <img src="{{ url_for('static', filename='images/kaggle-logo.svg') }}" alt="Kaggle" class="w-8 h-8">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Kaggle</h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            {% if apis_configured.kaggle %}
+                                <span class="text-green-600">✓ Connected</span>
+                            {% else %}
+                                <span class="text-yellow-600">⚠ Set KAGGLE_API_TOKEN</span>
+                            {% endif %}
+                        </p>
+                    </div>
                 </div>
                 <a href="{{ url_for('datasets.browse', source='kaggle') }}" 
                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
@@ -35,15 +38,18 @@
         <!-- HuggingFace -->
         <div class="bg-white rounded-lg shadow p-6 border-l-4 {{ 'border-green-500' if apis_configured.huggingface else 'border-yellow-500' }}">
             <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">🤗 HuggingFace</h3>
-                    <p class="text-sm text-gray-500 mt-1">
-                        {% if apis_configured.huggingface %}
-                            <span class="text-green-600">✓ Connected (Write Access)</span>
-                        {% else %}
-                            <span class="text-green-600">✓ Read Access (Public)</span>
-                        {% endif %}
-                    </p>
+                <div class="flex items-center space-x-3">
+                    <img src="{{ url_for('static', filename='images/huggingface-logo.svg') }}" alt="HuggingFace" class="w-8 h-8">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">HuggingFace</h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            {% if apis_configured.huggingface %}
+                                <span class="text-green-600">✓ Connected (Write Access)</span>
+                            {% else %}
+                                <span class="text-green-600">✓ Read Access (Public)</span>
+                            {% endif %}
+                        </p>
+                    </div>
                 </div>
                 <a href="{{ url_for('datasets.browse', source='huggingface') }}" 
                    class="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm">
@@ -55,15 +61,18 @@
         <!-- X/Twitter -->
         <div class="bg-white rounded-lg shadow p-6 border-l-4 {{ 'border-green-500' if apis_configured.twitter else 'border-red-500' }}">
             <div class="flex items-center justify-between">
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">𝕏 Twitter / X</h3>
-                    <p class="text-sm text-gray-500 mt-1">
-                        {% if apis_configured.twitter %}
-                            <span class="text-green-600">✓ Connected</span>
-                        {% else %}
-                            <span class="text-red-600">✗ Set X_BEARER_TOKEN</span>
-                        {% endif %}
-                    </p>
+                <div class="flex items-center space-x-3">
+                    <img src="{{ url_for('static', filename='images/x-logo.svg') }}" alt="X/Twitter" class="w-6 h-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Twitter / X</h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            {% if apis_configured.twitter %}
+                                <span class="text-green-600">✓ Connected</span>
+                            {% else %}
+                                <span class="text-red-600">✗ Set X_BEARER_TOKEN</span>
+                            {% endif %}
+                        </p>
+                    </div>
                 </div>
                 <a href="{{ url_for('datasets.twitter') }}" 
                    class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm {{ 'opacity-50 cursor-not-allowed' if not apis_configured.twitter else '' }}">
@@ -103,6 +112,68 @@
                     class="flex items-center justify-center p-4 bg-gradient-to-r from-black to-gray-700 text-white rounded-lg hover:opacity-90 transition">
                 <span class="text-lg">𝕏 Spark Stream</span>
             </button>
+        </div>
+    </div>
+
+    <!-- PostgreSQL Stored Datasets -->
+    <div class="bg-white rounded-lg shadow mb-8">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+                <h2 class="text-xl font-semibold text-gray-900">🗄️ PostgreSQL Datasets</h2>
+            </div>
+            <span class="text-sm text-gray-500">Click to view & analyze</span>
+        </div>
+        
+        <div class="p-6">
+            {% if psql_datasets %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for dataset in psql_datasets %}
+                <a href="{{ url_for('datasets.view_psql', dataset_id=dataset.id) }}" 
+                   class="block p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200 hover:border-purple-400 hover:shadow-lg transition group">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-lg font-semibold text-gray-900 truncate group-hover:text-purple-700">
+                                {{ dataset.name }}
+                            </h3>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                    {% if dataset.source == 'huggingface' %}bg-yellow-100 text-yellow-800
+                                    {% elif dataset.source == 'kaggle' %}bg-blue-100 text-blue-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ dataset.source }}
+                                </span>
+                                {% if dataset.subset %}
+                                <span class="text-xs text-gray-500">• {{ dataset.subset }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2">
+                                <span class="font-semibold text-purple-700">{{ "{:,}".format(dataset.num_rows) }}</span> samples
+                            </p>
+                        </div>
+                        <div class="ml-3 text-purple-400 group-hover:text-purple-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">
+                        Created: {{ dataset.created_at.strftime('%Y-%m-%d %H:%M') if dataset.created_at else 'N/A' }}
+                    </p>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8 text-gray-500">
+                <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                </svg>
+                <p>No datasets stored in PostgreSQL yet</p>
+                <p class="text-sm mt-1">Download datasets to automatically store them in the database</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 

@@ -9,6 +9,8 @@ from flask_login import login_required
 from app.datasets import bp
 from app.services.dataset_service import DatasetService
 from app.services.twitter_service import XTwitterService
+from app.models.dataset import DatasetMetadata, DatasetSample, DatasetRepository
+from app.extensions import db
 
 
 def get_dataset_service():
@@ -36,6 +38,9 @@ def index():
     """Dataset management dashboard."""
     dataset_service = get_dataset_service()
     local_datasets = dataset_service.list_local_datasets()
+    
+    # Get PostgreSQL stored datasets
+    psql_datasets = DatasetRepository.list_datasets()
 
     # Check API configurations
     apis_configured = {
@@ -45,7 +50,10 @@ def index():
     }
 
     return render_template(
-        "datasets/index.html", local_datasets=local_datasets, apis_configured=apis_configured
+        "datasets/index.html", 
+        local_datasets=local_datasets, 
+        psql_datasets=psql_datasets,
+        apis_configured=apis_configured
     )
 
 
@@ -96,6 +104,110 @@ def view_local(dataset_path):
                 )
 
     return render_template("datasets/view_local.html", dataset_path=dataset_path, files=files)
+
+
+@bp.route("/psql/<int:dataset_id>")
+# @login_required  # Temporarily disabled for testing
+def view_psql(dataset_id):
+    """View a PostgreSQL stored dataset - Jupyter notebook style view."""
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 50, type=int)
+    label_filter = request.args.get("label", None, type=int)
+    
+    dataset = DatasetMetadata.query.get_or_404(dataset_id)
+    
+    # Get paginated samples
+    query = DatasetSample.query.filter_by(dataset_id=dataset_id)
+    
+    if label_filter is not None:
+        query = query.filter_by(label=label_filter)
+    
+    # Get total count and paginate
+    total = query.count()
+    samples = query.order_by(DatasetSample.id).offset((page - 1) * per_page).limit(per_page).all()
+    
+    # Calculate label distribution for metrics
+    label_counts = {}
+    from sqlalchemy import func
+    label_stats = db.session.query(
+        DatasetSample.label, 
+        DatasetSample.label_text,
+        func.count(DatasetSample.id)
+    ).filter_by(dataset_id=dataset_id).group_by(
+        DatasetSample.label, 
+        DatasetSample.label_text
+    ).all()
+    
+    for label, label_text, count in label_stats:
+        label_counts[label] = {
+            "text": label_text or f"Label {label}",
+            "count": count,
+            "percentage": round(count / dataset.num_rows * 100, 1) if dataset.num_rows > 0 else 0
+        }
+    
+    # Sample some random examples for each label
+    sample_examples = {}
+    for label_id in label_counts.keys():
+        examples = DatasetSample.query.filter_by(
+            dataset_id=dataset_id, 
+            label=label_id
+        ).limit(3).all()
+        sample_examples[label_id] = [e.text[:200] for e in examples]
+    
+    # Pagination info
+    total_pages = (total + per_page - 1) // per_page
+    
+    return render_template(
+        "datasets/view_psql.html",
+        dataset=dataset,
+        samples=samples,
+        label_counts=label_counts,
+        sample_examples=sample_examples,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        label_filter=label_filter,
+    )
+
+
+@bp.route("/api/psql/list")
+# @login_required  # Temporarily disabled for testing
+def api_psql_list():
+    """List all PostgreSQL stored datasets."""
+    datasets = DatasetRepository.list_datasets()
+    return jsonify({
+        "datasets": [d.to_dict() for d in datasets]
+    })
+
+
+@bp.route("/api/psql/<int:dataset_id>/samples")
+# @login_required  # Temporarily disabled for testing
+def api_psql_samples(dataset_id):
+    """Get samples from a PostgreSQL dataset."""
+    limit = request.args.get("limit", 100, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    label = request.args.get("label", None, type=int)
+    
+    samples = DatasetRepository.get_samples(
+        dataset_id=dataset_id,
+        limit=limit,
+        offset=offset,
+        label=label
+    )
+    
+    return jsonify({
+        "samples": [s.to_dict() for s in samples],
+        "count": len(samples)
+    })
+
+
+@bp.route("/api/psql/<int:dataset_id>/delete", methods=["POST"])
+@login_required
+def api_psql_delete(dataset_id):
+    """Delete a PostgreSQL dataset."""
+    success = DatasetRepository.delete_dataset(dataset_id)
+    return jsonify({"success": success})
 
 
 # =============================================================================
